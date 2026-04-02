@@ -553,9 +553,8 @@
                     listEl.appendChild(card);
                 });
             } catch (error) { 
-                // FIX: Better Error Reporting
-                listEl.innerHTML = `<div style="color:red; padding:1rem; text-align:center;"><strong>Error:</strong> ${error.message}<br><br>Check Console (F12) for details.<br>Ensure Firestore Rules allow read/write.</div>`;
-                console.error("Firestore Load Error:", error);
+                listEl.innerHTML = `<div style="color:red; padding:1rem; text-align:center;"><strong>Error:</strong> ${error.message}<br>Check Firestore Rules.</div>`;
+                console.error("Load Error:", error);
                 alert("Database Error: " + error.message);
             }
         }
@@ -595,21 +594,18 @@
                     text = result.value;
                 } else return showToast('Unsupported', 'warning');
 
-                // Split by separator and remove empty entries
                 const blocks = text.split('---').filter(b => b.trim().length > 0);
                 let count = 0;
                 
                 for (const block of blocks) {
                     const lines = block.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-                    // Expecting: Q, Opt1, Opt2, Opt3, Opt4, CorrectIndex, Marks
                     if (lines.length >= 7) {
                         const q = {
                             text: lines[0],
                             options: lines.slice(1, 5),
-                            correctIndex: parseInt(lines[5]) - 1, // Convert 1-based to 0-based
+                            correctIndex: parseInt(lines[5]) - 1,
                             marks: parseInt(lines[6]) || 1
                         };
-                        // Validate correct index range
                         if(q.correctIndex >= 0 && q.correctIndex <= 3) {
                             try {
                                 await addDoc(collection(db, "questions"), { ...q, timestamp: Date.now() });
@@ -699,7 +695,6 @@
 
         async function loadQuestionsForUser() {
             try {
-                // Simple query without orderBy for user to avoid index requirement if simple
                 const q = query(collection(db, "questions"));
                 const snapshot = await getDocs(q);
                 window.examQuestions = [];
@@ -711,7 +706,6 @@
                 });
             } catch (error) {
                 console.error("User Load Error:", error);
-                // If error, examQuestions stays empty, startQuiz will handle it
             }
         }
 
@@ -729,14 +723,34 @@
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
                 window.quizState.stream = stream;
                 document.getElementById('webcam').srcObject = stream;
+                
+                // Start Recording Logic
                 recordedChunks = [];
-                try {
-                    mediaRecorder = new MediaRecorder(stream);
-                    mediaRecorder.ondataavailable = event => { if (event.data.size > 0) recordedChunks.push(event.data); };
-                    mediaRecorder.start();
-                    document.getElementById('rec-indicator').style.display = 'block';
-                } catch (e) { console.error("Recording error:", e); }
-            } catch (err) { showToast('Camera required', 'warning'); document.exitFullscreen(); return; }
+                if (MediaRecorder.isTypeSupported('video/webm')) {
+                    try {
+                        mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+                        mediaRecorder.ondataavailable = event => {
+                            if (event.data.size > 0) recordedChunks.push(event.data);
+                        };
+                        mediaRecorder.onstop = () => {
+                            console.log("Recording stopped. Chunks:", recordedChunks.length);
+                        };
+                        mediaRecorder.start();
+                        document.getElementById('rec-indicator').style.display = 'block';
+                        showToast('Recording started', 'success');
+                    } catch (e) {
+                        console.error("Recorder failed", e);
+                        alert("Video recording failed to start. Exam will proceed without video.");
+                    }
+                } else {
+                    alert("Browser does not support video recording. Exam will proceed without video.");
+                }
+
+            } catch (err) { 
+                showToast('Camera required', 'warning'); 
+                document.exitFullscreen(); 
+                return; 
+            }
 
             document.getElementById('user-dashboard').classList.add('hidden');
             document.getElementById('navbar').classList.add('hidden');
@@ -778,47 +792,77 @@
 
         window.submitQuiz = async () => {
             stopProctoring();
+            
+            // 1. Calculate Score Immediately
             const calculatedScore = calculateScore();
+            
             let videoUrl = null;
+            let videoError = null;
 
-            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                mediaRecorder.stop();
-                showToast('Uploading video...', 'success');
+            // 2. Stop Recording
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop(); // Triggers ondataavailable
             }
 
-            setTimeout(async () => {
-                if (recordedChunks.length > 0) {
-                    try {
-                        const blob = new Blob(recordedChunks, { type: 'video/webm' });
-                        const filename = `exam_${Date.now()}_${window.currentUser.email.replace(/[^a-zA-Z0-9]/g, '_')}.webm`;
-                        const storageRef = ref(storage, `exam_videos/${filename}`);
-                        await uploadBytes(storageRef, blob);
-                        videoUrl = await getDownloadURL(storageRef);
-                    } catch (err) { console.error("Upload failed", err); }
-                }
+            // 3. Wait for chunks to finalize
+            await new Promise(r => setTimeout(r, 1500));
 
+            // 4. Try to Upload Video
+            if (recordedChunks.length > 0) {
                 try {
-                    await addDoc(collection(db, "results"), {
-                        email: window.currentUser.email,
-                        score: calculatedScore,
-                        totalMarks: window.totalExamMarks,
-                        videoUrl: videoUrl,
-                        timestamp: Date.now()
-                    });
-                } catch(err) { console.error("Save result failed", err); }
+                    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                    if (blob.size < 1000) {
+                        throw new Error("Video file too small (recording failed)");
+                    }
+                    const filename = `exam_${Date.now()}_${window.currentUser.email.replace(/[^a-zA-Z0-9]/g, '_')}.webm`;
+                    const storageRef = ref(storage, `exam_videos/${filename}`);
+                    
+                    showToast('Uploading video... Please wait.', 'success');
+                    
+                    await uploadBytes(storageRef, blob);
+                    videoUrl = await getDownloadURL(storageRef);
+                    console.log("Video uploaded successfully");
+                } catch (err) {
+                    console.error("Video Upload Failed:", err);
+                    videoError = err.message;
+                    showToast('Video Upload Failed, but saving score...', 'warning');
+                }
+            } else {
+                console.log("No video chunks recorded");
+            }
 
-                document.getElementById('quiz-interface').classList.add('hidden');
-                document.exitFullscreen().catch(e => {});
-                if (window.quizState.stream) window.quizState.stream.getTracks().forEach(track => track.stop());
-                document.getElementById('result-modal').classList.remove('hidden');
-                
-                const scoreEl = document.getElementById('final-score');
-                let current = 0;
-                const interval = setInterval(() => {
-                    if (current >= calculatedScore) clearInterval(interval);
-                    else { current++; scoreEl.innerText = current; }
-                }, 50);
-            }, 1000);
+            // 5. Save Result (Always runs, regardless of video)
+            try {
+                await addDoc(collection(db, "results"), {
+                    email: window.currentUser.email,
+                    score: calculatedScore,
+                    totalMarks: window.totalExamMarks,
+                    videoUrl: videoUrl,
+                    timestamp: Date.now()
+                });
+                showToast('Result Saved Successfully', 'success');
+            } catch(err) { 
+                console.error("Save result failed", err); 
+                showToast('Failed to save score: ' + err.message, 'warning');
+                // Even if save fails, we might want to show the user their score locally?
+                // For now, alert and stop.
+                alert("Critical Error: Could not save score.");
+                return; 
+            }
+
+            // 6. Show UI
+            document.getElementById('quiz-interface').classList.add('hidden');
+            document.exitFullscreen().catch(e => {});
+            if (window.quizState.stream) window.quizState.stream.getTracks().forEach(track => track.stop());
+            document.getElementById('result-modal').classList.remove('hidden');
+            
+            // Animate Score
+            const scoreEl = document.getElementById('final-score');
+            let current = 0;
+            const interval = setInterval(() => {
+                if (current >= calculatedScore) clearInterval(interval);
+                else { current++; scoreEl.innerText = current; }
+            }, 50);
         };
 
         function calculateScore() {
@@ -857,7 +901,12 @@
             else if (count < 8) bar.style.backgroundColor = 'orange';
             else bar.style.backgroundColor = 'var(--danger)';
         }
-        function handleVisibilityChange() { if (document.hidden) triggerViolation("Tab switched/minimized"); }
+        function handleVisibilityChange() { 
+            // Check strict state
+            if (document.hidden && window.quizState.isActive) { 
+                triggerViolation("Tab switched/minimized"); 
+            }
+        }
         function handleFullscreenChange() {
             if (!document.fullscreenElement && window.quizState.isActive) {
                 triggerViolation("Exited fullscreen");
