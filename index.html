@@ -75,14 +75,14 @@
         .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
         .question-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; }
         .q-card { background: var(--surface); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border); position: relative; }
-        .q-card h4 { margin-bottom: 0.5rem; }
+        .q-card h4 { margin-bottom: 0.5rem; word-wrap: break-word; }
         .q-card .badge { display: inline-block; padding: 2px 8px; background: var(--primary); color: white; border-radius: 12px; font-size: 0.75rem; margin-bottom: 0.5rem; }
         .delete-btn { position: absolute; top: 1rem; right: 1rem; color: var(--danger); background: none; border: none; cursor: pointer; font-size: 1.2rem; }
 
         /* Results Table */
-        .results-section { background: var(--surface); padding: 2rem; border-radius: 8px; border: 1px solid var(--border); margin-top: 2rem; }
+        .results-section { background: var(--surface); padding: 2rem; border-radius: 8px; border: 1px solid var(--border); margin-top: 2rem; overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-        th, td { text-align: left; padding: 12px; border-bottom: 1px solid var(--border); }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
         th { color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; }
 
         /* Quiz Interface (Fullscreen & Secure) */
@@ -292,9 +292,9 @@
             <!-- TAB: Results Management -->
             <div id="admin-tab-results" class="hidden">
                 <div class="results-section">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap;">
                         <h3>Student Exam Results & Recordings</h3>
-                        <div>
+                        <div style="margin-top: 10px;">
                             <button onclick="downloadResults('csv')" class="btn btn-success">Download Excel (CSV)</button>
                             <button onclick="downloadResults('doc')" class="btn btn-primary">Download Word (.doc)</button>
                             <button onclick="downloadResults('txt')" class="btn btn-outline">Download Text (.txt)</button>
@@ -307,7 +307,7 @@
                                 <th>Score</th>
                                 <th>Total Marks</th>
                                 <th>Date</th>
-                                <th>Exam Video</th> <!-- NEW COLUMN -->
+                                <th>Exam Video</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -394,14 +394,14 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
         import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js"; // NEW: Storage SDK
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js";
 
         // --- Firebase Configuration ---
         const firebaseConfig = {
             apiKey: "AIzaSyCxwPgFfHWPBNh4Cvc_DYZbntLZWu_uETg",
             authDomain: "sem6-92dc9.firebaseapp.com",
             projectId: "sem6-92dc9",
-            storageBucket: "sem6-92dc9.firebasestorage.app", // Ensure this matches your console
+            storageBucket: "sem6-92dc9.firebasestorage.app",
             messagingSenderId: "1096656947238",
             appId: "1:1096656947238:web:eaf40f567e29aa76fffee7",
             measurementId: "G-YT0KKWGN84"
@@ -411,7 +411,7 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const storage = getStorage(app); // Initialize Storage
+        const storage = getStorage(app);
 
         // --- Global State ---
         window.currentUser = null;
@@ -419,8 +419,6 @@
         window.userRole = localStorage.getItem('userRole') || 'user';
         window.isSignUp = false;
         window.allResults = [];
-
-        // Video Recording State
         let mediaRecorder;
         let recordedChunks = [];
 
@@ -532,12 +530,15 @@
             try {
                 await addDoc(collection(db, "questions"), { text, marks, options, correctIndex, timestamp: Date.now() });
                 showToast('Question added', 'success'); e.target.reset(); generateOptionInputs(); loadQuestions();
-            } catch (error) { showToast(error.message, 'warning'); }
+            } catch (error) { 
+                showToast('Error: ' + error.message, 'warning'); 
+                console.error(error);
+            }
         };
 
         async function loadQuestions() {
             const listEl = document.getElementById('questions-list');
-            listEl.innerHTML = 'Loading...';
+            listEl.innerHTML = 'Loading questions...';
             try {
                 const q = query(collection(db, "questions"), orderBy("timestamp", "desc"));
                 const querySnapshot = await getDocs(q);
@@ -551,11 +552,24 @@
                     card.innerHTML = `<span class="badge">${data.marks} Marks</span><h4>${data.text}</h4><button class="delete-btn" onclick="deleteQuestion('${doc.id}')">&times;</button>`;
                     listEl.appendChild(card);
                 });
-            } catch (error) { listEl.innerHTML = 'Error loading.'; }
+            } catch (error) { 
+                // FIX: Better Error Reporting
+                listEl.innerHTML = `<div style="color:red; padding:1rem; text-align:center;"><strong>Error:</strong> ${error.message}<br><br>Check Console (F12) for details.<br>Ensure Firestore Rules allow read/write.</div>`;
+                console.error("Firestore Load Error:", error);
+                alert("Database Error: " + error.message);
+            }
         }
 
         window.deleteQuestion = async (id) => {
-            if(confirm('Delete?')) { await deleteDoc(doc(db, "questions", id)); showToast('Deleted', 'success'); loadQuestions(); }
+            if(confirm('Delete?')) { 
+                try {
+                    await deleteDoc(doc(db, "questions", id)); 
+                    showToast('Deleted', 'success'); 
+                    loadQuestions();
+                } catch(e) {
+                    alert("Delete failed: " + e.message);
+                }
+            }
         };
 
         window.clearAllQuestions = async () => {
@@ -581,24 +595,38 @@
                     text = result.value;
                 } else return showToast('Unsupported', 'warning');
 
-                const blocks = text.split('---');
+                // Split by separator and remove empty entries
+                const blocks = text.split('---').filter(b => b.trim().length > 0);
                 let count = 0;
+                
                 for (const block of blocks) {
                     const lines = block.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                    // Expecting: Q, Opt1, Opt2, Opt3, Opt4, CorrectIndex, Marks
                     if (lines.length >= 7) {
                         const q = {
                             text: lines[0],
                             options: lines.slice(1, 5),
-                            correctIndex: parseInt(lines[5]) - 1,
+                            correctIndex: parseInt(lines[5]) - 1, // Convert 1-based to 0-based
                             marks: parseInt(lines[6]) || 1
                         };
+                        // Validate correct index range
                         if(q.correctIndex >= 0 && q.correctIndex <= 3) {
-                            await addDoc(collection(db, "questions"), { ...q, timestamp: Date.now() });
-                            count++;
+                            try {
+                                await addDoc(collection(db, "questions"), { ...q, timestamp: Date.now() });
+                                count++;
+                            } catch (uploadErr) {
+                                console.error("Upload error for question: ", uploadErr);
+                            }
                         }
                     }
                 }
-                showToast(`Uploaded ${count} questions`, 'success'); fileInput.value = ''; loadQuestions();
+                if(count > 0) {
+                    showToast(`Uploaded ${count} questions`, 'success'); 
+                    fileInput.value = ''; 
+                    loadQuestions();
+                } else {
+                    showToast('No valid questions found. Check format.', 'warning');
+                }
             } catch (error) { showToast('Error: ' + error.message, 'warning'); }
         };
 
@@ -617,12 +645,9 @@
                     const data = doc.data();
                     window.allResults.push(data);
                     const row = document.createElement('tr');
-                    
-                    // Check if video exists
                     const videoLink = data.videoUrl 
                         ? `<a href="${data.videoUrl}" target="_blank" class="btn btn-primary" style="font-size:0.8rem; padding:0.4rem;">Watch Video</a>`
                         : `<span style="color:#aaa; font-size:0.8rem;">No Video</span>`;
-
                     row.innerHTML = `
                         <td>${data.email}</td>
                         <td style="font-weight:bold; color:var(--primary);">${data.score}</td>
@@ -632,7 +657,7 @@
                     `;
                     tbody.appendChild(row);
                 });
-            } catch (error) { tbody.innerHTML = '<tr><td colspan="5">Error loading.</td></tr>'; }
+            } catch (error) { tbody.innerHTML = '<tr><td colspan="5">Error loading results.</td></tr>'; }
         }
 
         window.clearAllResults = async () => {
@@ -673,15 +698,21 @@
         }
 
         async function loadQuestionsForUser() {
-            const q = query(collection(db, "questions"));
-            const snapshot = await getDocs(q);
-            window.examQuestions = [];
-            window.totalExamMarks = 0;
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                window.examQuestions.push({ id: doc.id, ...data });
-                window.totalExamMarks += data.marks;
-            });
+            try {
+                // Simple query without orderBy for user to avoid index requirement if simple
+                const q = query(collection(db, "questions"));
+                const snapshot = await getDocs(q);
+                window.examQuestions = [];
+                window.totalExamMarks = 0;
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    window.examQuestions.push({ id: doc.id, ...data });
+                    window.totalExamMarks += data.marks;
+                });
+            } catch (error) {
+                console.error("User Load Error:", error);
+                // If error, examQuestions stays empty, startQuiz will handle it
+            }
         }
 
         // --- Quiz & Security Logic ---
@@ -689,28 +720,22 @@
         window.quizState = { currentIndex: 0, answers: {}, score: 0, warnings: 0, maxWarnings: 10, isActive: false, stream: null };
 
         window.startQuiz = async () => {
-            if (window.examQuestions.length === 0) return showToast('No questions', 'warning');
+            if (window.examQuestions.length === 0) {
+                showToast('No questions available. Please contact admin.', 'warning');
+                return;
+            }
             try { await document.documentElement.requestFullscreen(); } catch (err) { showToast('Fullscreen required', 'warning'); return; }
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
                 window.quizState.stream = stream;
                 document.getElementById('webcam').srcObject = stream;
-                
-                // --- START RECORDING ---
                 recordedChunks = [];
                 try {
                     mediaRecorder = new MediaRecorder(stream);
-                    mediaRecorder.ondataavailable = event => {
-                        if (event.data.size > 0) recordedChunks.push(event.data);
-                    };
+                    mediaRecorder.ondataavailable = event => { if (event.data.size > 0) recordedChunks.push(event.data); };
                     mediaRecorder.start();
                     document.getElementById('rec-indicator').style.display = 'block';
-                } catch (e) {
-                    console.error("Recording error:", e);
-                    // Continue even if recording fails, but warn
-                    showToast("Video recording not supported on this browser", "warning");
-                }
-
+                } catch (e) { console.error("Recording error:", e); }
             } catch (err) { showToast('Camera required', 'warning'); document.exitFullscreen(); return; }
 
             document.getElementById('user-dashboard').classList.add('hidden');
@@ -754,46 +779,34 @@
         window.submitQuiz = async () => {
             stopProctoring();
             const calculatedScore = calculateScore();
-            
             let videoUrl = null;
 
-            // --- STOP RECORDING & UPLOAD ---
             if (mediaRecorder && mediaRecorder.state !== 'inactive') {
                 mediaRecorder.stop();
-                showToast('Uploading video...', 'success'); // Notify user
+                showToast('Uploading video...', 'success');
             }
 
-            // Wait a moment for recorder to stop fully, then upload
             setTimeout(async () => {
                 if (recordedChunks.length > 0) {
                     try {
                         const blob = new Blob(recordedChunks, { type: 'video/webm' });
                         const filename = `exam_${Date.now()}_${window.currentUser.email.replace(/[^a-zA-Z0-9]/g, '_')}.webm`;
                         const storageRef = ref(storage, `exam_videos/${filename}`);
-                        
-                        // Upload
                         await uploadBytes(storageRef, blob);
-                        // Get URL
                         videoUrl = await getDownloadURL(storageRef);
-                        console.log("Video uploaded:", videoUrl);
-                    } catch (err) {
-                        console.error("Upload failed", err);
-                        showToast("Video upload failed, but score saved.", "warning");
-                    }
+                    } catch (err) { console.error("Upload failed", err); }
                 }
 
-                // Save Result (with or without video)
                 try {
                     await addDoc(collection(db, "results"), {
                         email: window.currentUser.email,
                         score: calculatedScore,
                         totalMarks: window.totalExamMarks,
-                        videoUrl: videoUrl, // Save the video link here
+                        videoUrl: videoUrl,
                         timestamp: Date.now()
                     });
                 } catch(err) { console.error("Save result failed", err); }
 
-                // Finish UI
                 document.getElementById('quiz-interface').classList.add('hidden');
                 document.exitFullscreen().catch(e => {});
                 if (window.quizState.stream) window.quizState.stream.getTracks().forEach(track => track.stop());
@@ -805,8 +818,7 @@
                     if (current >= calculatedScore) clearInterval(interval);
                     else { current++; scoreEl.innerText = current; }
                 }, 50);
-
-            }, 1000); // 1 second delay to ensure stream stops
+            }, 1000);
         };
 
         function calculateScore() {
