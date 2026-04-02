@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SecureQuiz Pro | AI-Proctored Assessment</title>
+    <!-- Mammoth.js for reading Word Documents -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
     <style>
         :root {
             --primary: #2563eb;
@@ -125,6 +127,29 @@
             .quiz-sidebar { height: 250px; flex-direction: row; overflow-x: auto; }
             .camera-container { min-width: 250px; }
         }
+        
+        /* Bulk Upload Specifics */
+        .bulk-upload-area {
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px dashed var(--border);
+        }
+        .format-help {
+            background: #f1f5f9;
+            padding: 1rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+        }
+        .format-help code {
+            display: block;
+            background: #e2e8f0;
+            padding: 0.5rem;
+            margin-top: 0.5rem;
+            font-family: monospace;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
@@ -183,9 +208,9 @@
                 <button onclick="clearAllQuestions()" class="btn btn-danger">Delete All Questions</button>
             </div>
 
-            <!-- Create Question Form -->
+            <!-- Manual Upload Form -->
             <div class="card" style="max-width: 100%; margin-bottom: 2rem;">
-                <h3 style="margin-bottom: 1rem;">Upload Question</h3>
+                <h3 style="margin-bottom: 1rem;">Upload Single Question</h3>
                 <form onsubmit="handleUploadQuestion(event)">
                     <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;">
                         <input type="text" id="q-text" placeholder="Enter Question Text" required>
@@ -216,6 +241,32 @@
 
                     <button type="submit" class="btn btn-primary">Add Question to Database</button>
                 </form>
+                
+                <!-- BULK UPLOAD SECTION -->
+                <div class="bulk-upload-area">
+                    <h3 style="margin-bottom: 1rem;">Bulk Upload (.txt or .docx)</h3>
+                    <div class="format-help">
+                        <strong>File Format Requirements:</strong><br>
+                        Line 1: Question<br>
+                        Lines 2-5: Options (One per line)<br>
+                        Line 6: Correct Option Index (1, 2, 3, or 4)<br>
+                        Line 7: Marks<br>
+                        Line 8: <strong>---</strong> (Separator for next question)
+                        <code>
+                            What is 2+2?<br>
+                            3<br>
+                            4<br>
+                            5<br>
+                            6<br>
+                            2<br>
+                            5<br>
+                            ---<br>
+                            (Next question...)
+                        </code>
+                    </div>
+                    <input type="file" id="bulk-file" accept=".txt,.docx" style="margin-bottom: 0.5rem;">
+                    <button onclick="handleBulkUpload()" class="btn btn-outline" style="width: 100%;">Upload & Process File</button>
+                </div>
             </div>
 
             <h3 style="margin-bottom: 1rem;">Existing Questions</h3>
@@ -540,6 +591,113 @@
                 loadQuestions();
             }
         };
+
+        // --- Bulk Upload Logic (NEW) ---
+        
+        window.handleBulkUpload = async () => {
+            const fileInput = document.getElementById('bulk-file');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showToast('Please select a file (.txt or .docx)', 'warning');
+                return;
+            }
+
+            let text = "";
+
+            try {
+                showToast('Reading file...', 'success');
+
+                if (file.name.endsWith('.txt')) {
+                    text = await file.text();
+                } else if (file.name.endsWith('.docx')) {
+                    if (typeof mammoth === 'undefined') {
+                        showToast('Mammoth library not loaded. Check internet.', 'warning');
+                        return;
+                    }
+                    const arrayBuffer = await file.arrayBuffer();
+                    const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
+                    text = result.value;
+                } else {
+                    showToast('Unsupported file type. Use .txt or .docx', 'warning');
+                    return;
+                }
+
+                // Parse the text
+                const questions = parseTextToQuestions(text);
+
+                if (questions.length === 0) {
+                    showToast('No valid questions found in file.', 'warning');
+                    return;
+                }
+
+                // Upload to Firebase
+                showToast(`Found ${questions.length} questions. Uploading...`, 'success');
+                let successCount = 0;
+
+                for (const q of questions) {
+                    try {
+                        await addDoc(collection(db, "questions"), {
+                            ...q,
+                            timestamp: Date.now()
+                        });
+                        successCount++;
+                    } catch (err) {
+                        console.error("Error uploading q:", err);
+                    }
+                }
+
+                showToast(`Successfully uploaded ${successCount} questions!`, 'success');
+                fileInput.value = ''; // Reset input
+                loadQuestions(); // Refresh list
+
+            } catch (error) {
+                console.error(error);
+                showToast('Error processing file: ' + error.message, 'warning');
+            }
+        };
+
+        function parseTextToQuestions(text) {
+            // Split by '---' to get individual question blocks
+            const blocks = text.split('---');
+            const parsedQuestions = [];
+
+            blocks.forEach(block => {
+                const lines = block.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+                // Expected format:
+                // Line 0: Question
+                // Line 1-4: Options (Assuming 4 options for now based on standard format)
+                // Line 5: Correct Index (1-based or 0-based? Let's assume user inputs 1,2,3,4 as per common usage)
+                // Line 6: Marks
+
+                if (lines.length >= 7) {
+                    const questionText = lines[0];
+                    const options = lines.slice(1, 5); // Take next 4 lines
+                    const correctAnswerRaw = lines[5];
+                    const marks = parseInt(lines[6]) || 1;
+
+                    // Validate options
+                    if (options.length === 4) {
+                        // Convert 1-based index to 0-based
+                        let correctIndex = parseInt(correctAnswerRaw) - 1;
+                        
+                        // If user typed "1", index is 0. If user typed "Option 1", handle it?
+                        // For simplicity, we require number 1-4.
+                        if (correctIndex >= 0 && correctIndex <= 3) {
+                            parsedQuestions.push({
+                                text: questionText,
+                                options: options,
+                                correctIndex: correctIndex,
+                                marks: marks
+                            });
+                        }
+                    }
+                }
+            });
+
+            return parsedQuestions;
+        }
 
         // --- User Dashboard Logic ---
 
