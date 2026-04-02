@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SecureQuiz Pro | Local Recording</title>
+    <title>SecureQuiz Pro | Local Recording (With Audio)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
     <style>
         :root {
@@ -250,11 +250,11 @@
             <div class="card" style="text-align: center; padding: 4rem 2rem;">
                 <h2 style="margin-bottom: 1rem;">Ready to start your exam?</h2>
                 <p style="color: var(--text-muted); margin-bottom: 2rem;">
-                    This is a highly secure environment. Your camera will monitor your presence, 
+                    This is a highly secure environment. Your camera and microphone will monitor your presence, 
                     and fullscreen mode is mandatory. <br>
                     <strong>Warning Limit:</strong> 10. Tab switching or face occlusion triggers warnings.
                     <br><br>
-                    <span style="color:var(--danger);">Note: Your session will be video recorded and downloaded to your computer.</span>
+                    <span style="color:var(--danger);">Note: Your session will be video recorded with audio and downloaded to your computer.</span>
                 </p>
                 <button onclick="startQuiz()" class="btn btn-primary" style="font-size: 1.2rem; padding: 1rem 2rem;">
                     Start Secure Quiz
@@ -309,7 +309,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
         import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, updateDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-        // Storage REMOVED
 
         const firebaseConfig = {
             apiKey: "AIzaSyCxwPgFfHWPBNh4Cvc_DYZbntLZWu_uETg",
@@ -509,10 +508,7 @@
                     const data = doc.data();
                     window.allResults.push(data);
                     const row = document.createElement('tr');
-                    
-                    // Show Local Status instead of Link
                     let recordingStatus = `<span style="color:green; font-size:0.8rem;">Saved Locally</span>`;
-
                     row.innerHTML = `
                         <td>${data.email}</td>
                         <td style="font-weight:bold; color:var(--primary);">${data.score}</td>
@@ -579,7 +575,11 @@
             if (window.examQuestions.length === 0) return showToast('No questions available.', 'warning');
             try { await document.documentElement.requestFullscreen(); } catch (err) { showToast('Fullscreen required', 'warning'); return; }
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+                // ADDED AUDIO: true
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "user" }, 
+                    audio: true 
+                });
                 window.quizState.stream = stream;
                 document.getElementById('webcam').srcObject = stream;
                 
@@ -597,10 +597,10 @@
                     mediaRecorder.ondataavailable = event => { if (event.data.size > 0) recordedChunks.push(event.data); };
                     mediaRecorder.start();
                     document.getElementById('rec-indicator').style.display = 'block';
-                    console.log("Recording started");
-                    showToast('Recording started locally', 'success');
+                    console.log("Recording started (Video + Audio)");
+                    showToast('Recording started with Audio', 'success');
                 } catch (e) { console.error("Recorder failed", e); alert("Video recording failed to start."); }
-            } catch (err) { showToast('Camera required', 'warning'); document.exitFullscreen(); return; }
+            } catch (err) { showToast('Camera and Microphone required', 'warning'); document.exitFullscreen(); return; }
 
             document.getElementById('user-dashboard').classList.add('hidden');
             document.getElementById('navbar').classList.add('hidden');
@@ -655,7 +655,7 @@
                 email: window.currentUser.email,
                 score: calculatedScore,
                 totalMarks: window.totalExamMarks,
-                videoUrl: "Saved Locally", // Set status locally
+                videoUrl: "Saved Locally", 
                 timestamp: Date.now()
             };
 
@@ -669,14 +669,19 @@
                 return;
             }
 
-            // 4. DOWNLOAD VIDEO LOCALLY
+            // 4. DOWNLOAD VIDEO LOCALLY WITH EMAIL NAME
             if (recordedChunks.length > 0) {
                 const blob = new Blob(recordedChunks, { type: 'video/webm' });
                 const url = URL.createObjectURL(blob);
+                
+                // Clean Email for filename
+                const safeEmail = window.currentUser.email.replace(/[^a-zA-Z0-9]/g, '_');
+                
                 const a = document.createElement('a');
                 a.style.display = 'none';
                 a.href = url;
-                a.download = `exam_recording_${Date.now()}.webm`;
+                // FILENAME UPDATE: Email + Exam + Timestamp
+                a.download = `${safeEmail}_Exam_${Date.now()}.webm`;
                 document.body.appendChild(a);
                 a.click();
                 window.URL.revokeObjectURL(url);
