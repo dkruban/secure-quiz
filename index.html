@@ -63,15 +63,33 @@
         table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
         th, td { text-align: left; padding: 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
         th { color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; }
+        
+        /* Quiz Interface */
         #quiz-interface {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: var(--background);
             z-index: 2000; display: grid; grid-template-columns: 1fr 300px; overflow: hidden;
+            transition: grid-template-columns 0.3s ease;
         }
+        /* Zen Mode: Full width when sidebar hidden */
+        #quiz-interface.full-width { grid-template-columns: 1fr 60px; }
+
         .quiz-main { padding: 2rem; overflow-y: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        
         .quiz-sidebar {
-            background: var(--surface); border-left: 1px solid var(--border); padding: 1rem;
-            display: flex; flex-direction: column; gap: 1rem;
+            background: var(--surface); border-left: 1px solid var(--border); padding: 0;
+            display: flex; flex-direction: column; gap: 1rem; position: relative; transition: width 0.3s ease;
+            overflow: hidden;
         }
+        
+        /* Zen Mode Styles for Sidebar */
+        .sidebar-toggle {
+            padding: 1rem; cursor: pointer; text-align: center; border-bottom: 1px solid var(--border);
+            font-size: 1.5rem; color: var(--text-muted); background: #f8fafc;
+        }
+        .sidebar-toggle:hover { background: #e2e8f0; color: var(--primary); }
+        .sidebar-content { padding: 1rem; transition: opacity 0.3s; }
+        #quiz-interface.full-width .sidebar-content { opacity: 0; pointer-events: none; display: none; }
+        
         .camera-container {
             width: 100%; height: 200px; background: #000; border-radius: 8px; overflow: hidden; position: relative;
         }
@@ -272,27 +290,34 @@
             </div>
         </div>
         <aside class="quiz-sidebar">
-            <div class="camera-container">
-                <video id="webcam" autoplay playsinline muted></video>
-                <div id="cam-overlay" class="cam-overlay secure">
-                    <div class="cam-text">
-                        <div id="cam-status">SECURE</div>
-                        <div style="font-size: 0.7rem; margin-top:5px;">AI Monitoring Active</div>
+            <!-- Toggle Button for Zen Mode -->
+            <div class="sidebar-toggle" onclick="toggleSidebar()" title="Toggle Sidebar">
+                <span id="toggle-icon">⋮</span>
+            </div>
+
+            <div class="sidebar-content">
+                <div class="camera-container">
+                    <video id="webcam" autoplay playsinline muted></video>
+                    <div id="cam-overlay" class="cam-overlay secure">
+                        <div class="cam-text">
+                            <div id="cam-status">SECURE</div>
+                            <div style="font-size: 0.7rem; margin-top:5px;">AI Monitoring Active</div>
+                        </div>
+                    </div>
+                    <div id="rec-indicator" class="rec-indicator"></div>
+                </div>
+                <div style="background: #fff; padding: 1rem; border-radius: 8px; border: 1px solid var(--border);">
+                    <h4 style="margin-bottom: 0.5rem; font-size: 0.9rem; text-transform: uppercase; color: var(--text-muted);">Proctor Status</h4>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span>Warnings:</span>
+                        <strong id="warning-count" style="color: var(--text-main);">0 / 10</strong>
+                    </div>
+                    <div style="width: 100%; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
+                        <div id="warning-bar" style="width: 0%; height: 100%; background: var(--success); transition: all 0.3s;"></div>
                     </div>
                 </div>
-                <div id="rec-indicator" class="rec-indicator"></div>
+                <div style="margin-top: auto; font-size: 0.8rem; color: var(--text-muted);">Do not exit fullscreen or cover camera.</div>
             </div>
-            <div style="background: #fff; padding: 1rem; border-radius: 8px; border: 1px solid var(--border);">
-                <h4 style="margin-bottom: 0.5rem; font-size: 0.9rem; text-transform: uppercase; color: var(--text-muted);">Proctor Status</h4>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                    <span>Warnings:</span>
-                    <strong id="warning-count" style="color: var(--text-main);">0 / 10</strong>
-                </div>
-                <div style="width: 100%; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
-                    <div id="warning-bar" style="width: 0%; height: 100%; background: var(--success); transition: all 0.3s;"></div>
-                </div>
-            </div>
-            <div style="margin-top: auto; font-size: 0.8rem; color: var(--text-muted);">Do not exit fullscreen or cover camera.</div>
         </aside>
     </section>
 
@@ -575,7 +600,6 @@
             if (window.examQuestions.length === 0) return showToast('No questions available.', 'warning');
             try { await document.documentElement.requestFullscreen(); } catch (err) { showToast('Fullscreen required', 'warning'); return; }
             try {
-                // ADDED AUDIO: true
                 const stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { facingMode: "user" }, 
                     audio: true 
@@ -660,7 +684,6 @@
             };
 
             try {
-                // 3. Save Score to Firestore
                 await addDoc(collection(db, "results"), resultData);
                 showToast("Score Saved", "success");
             } catch(err) {
@@ -669,26 +692,10 @@
                 return;
             }
 
-            // 4. DOWNLOAD VIDEO LOCALLY WITH EMAIL NAME
-            if (recordedChunks.length > 0) {
-                const blob = new Blob(recordedChunks, { type: 'video/webm' });
-                const url = URL.createObjectURL(blob);
-                
-                // Clean Email for filename
-                const safeEmail = window.currentUser.email.replace(/[^a-zA-Z0-9]/g, '_');
-                
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
-                // FILENAME UPDATE: Email + Exam + Timestamp
-                a.download = `${safeEmail}_Exam_${Date.now()}.webm`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                showToast("Video Downloaded to PC", "success");
-            }
+            // 3. DOWNLOAD VIDEO
+            downloadRecording();
 
-            // 5. Show UI
+            // 4. Show UI
             document.getElementById('quiz-interface').classList.add('hidden');
             document.exitFullscreen().catch(e => {});
             if (window.quizState.stream) window.quizState.stream.getTracks().forEach(track => track.stop());
@@ -701,6 +708,46 @@
                 else { current++; scoreEl.innerText = current; }
             }, 50);
         };
+
+        // NEW: Zen Mode Toggle
+        window.toggleSidebar = () => {
+            const sidebar = document.querySelector('.quiz-sidebar');
+            const icon = document.getElementById('toggle-icon');
+            const quizInterface = document.getElementById('quiz-interface');
+            
+            sidebar.classList.toggle('hidden');
+            
+            if(sidebar.classList.contains('hidden')) {
+                // Expanded (Zen Mode) -> Show Sidebar
+                sidebar.classList.remove('hidden'); // Actually we want to hide content or sidebar?
+                // Let's do: Toggle Class on Interface
+            }
+            
+            if (quizInterface.classList.contains('full-width')) {
+                quizInterface.classList.remove('full-width');
+                icon.innerText = "⋮";
+            } else {
+                quizInterface.classList.add('full-width');
+                icon.innerText = "✕";
+            }
+        };
+
+        // NEW: Separate function to download recording (for reuse in terminate)
+        async function downloadRecording() {
+            if (recordedChunks.length > 0) {
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const safeEmail = window.currentUser.email.replace(/[^a-zA-Z0-9]/g, '_');
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `${safeEmail}_Exam_${Date.now()}.webm`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                showToast("Video Downloaded", "success");
+            }
+        }
 
         function calculateScore() {
             let total = 0;
@@ -724,7 +771,20 @@
             showToast(`Warning: ${reason} (${window.quizState.warnings}/10)`, 'warning');
             if (window.quizState.warnings >= window.quizState.maxWarnings) terminateExam("Max violations reached.");
         }
-        function terminateExam(reason) { stopProctoring(); alert(reason); location.reload(); }
+        function terminateExam(reason) { 
+            stopProctoring(); 
+            
+            // NEW: DOWNLOAD RECORDING BEFORE EXITING
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+            }
+            
+            setTimeout(async () => {
+                await downloadRecording(); // Force download of proof
+                alert(reason + " Exam terminated.");
+                location.reload();
+            }, 1500);
+        }
         function updateWarningUI() {
             const count = window.quizState.warnings;
             document.getElementById('warning-count').innerText = `${count} / ${window.quizState.maxWarnings}`;
