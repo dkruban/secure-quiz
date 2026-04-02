@@ -231,7 +231,7 @@
             <div id="admin-tab-results" class="hidden">
                 <div class="results-section">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap;">
-                        <h3>Student Results (Video Stored Locally)</h3>
+                        <h3>Student Exam Results</h3>
                         <div style="margin-top: 10px;">
                             <button onclick="downloadResults('csv')" class="btn btn-success">Download Excel (CSV)</button>
                             <button onclick="downloadResults('doc')" class="btn btn-primary">Download Word (.doc)</button>
@@ -239,12 +239,9 @@
                         </div>
                     </div>
                     <table id="results-table">
-                        <thead><tr><th>Email</th><th>Score</th><th>Total Marks</th><th>Date</th><th>Video Status</th></tr></thead>
+                        <thead><tr><th>Email</th><th>Score</th><th>Total Marks</th><th>Date</th><th>Recording</th></tr></thead>
                         <tbody><tr><td colspan="5">Loading results...</td></tr></tbody>
                     </table>
-                    <p style="margin-top:1rem; color:var(--text-muted); font-size:0.9rem;">
-                        Note: Videos are downloaded to the Student's computer. Ask the student to email the video file to you.
-                    </p>
                 </div>
             </div>
         </section>
@@ -257,7 +254,7 @@
                     and fullscreen mode is mandatory. <br>
                     <strong>Warning Limit:</strong> 10. Tab switching or face occlusion triggers warnings.
                     <br><br>
-                    <span style="color:var(--danger);">Note: Your session will be video recorded and downloaded to your PC.</span>
+                    <span style="color:var(--danger);">Note: Your session will be video recorded and downloaded to your computer.</span>
                 </p>
                 <button onclick="startQuiz()" class="btn btn-primary" style="font-size: 1.2rem; padding: 1rem 2rem;">
                     Start Secure Quiz
@@ -304,18 +301,15 @@
             <h2 style="margin-bottom: 1rem;">Exam Submitted</h2>
             <p style="font-size: 1.2rem; margin-bottom: 1.5rem;">Your Score:</p>
             <div id="final-score" style="font-size: 3rem; font-weight: bold; color: var(--primary); margin-bottom: 2rem;">0</div>
-            <div style="margin-bottom:1rem; font-size:0.9rem; color:var(--text-muted);">
-                Your video recording is downloading now. Please send this file to your admin.
-            </div>
             <button onclick="location.reload()" class="btn btn-primary">Return to Home</button>
         </div>
     </div>
 
     <script type="module">
-        // Import only Auth and Firestore (No Storage)
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, updateDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+        // Storage REMOVED
 
         const firebaseConfig = {
             apiKey: "AIzaSyCxwPgFfHWPBNh4Cvc_DYZbntLZWu_uETg",
@@ -330,7 +324,6 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        // No Storage Initialization needed
 
         window.currentUser = null;
         window.questions = [];
@@ -516,12 +509,16 @@
                     const data = doc.data();
                     window.allResults.push(data);
                     const row = document.createElement('tr');
+                    
+                    // Show Local Status instead of Link
+                    let recordingStatus = `<span style="color:green; font-size:0.8rem;">Saved Locally</span>`;
+
                     row.innerHTML = `
                         <td>${data.email}</td>
                         <td style="font-weight:bold; color:var(--primary);">${data.score}</td>
                         <td>${data.totalMarks}</td>
                         <td>${new Date(data.timestamp).toLocaleString()}</td>
-                        <td style="color:var(--text-muted); font-size:0.8rem;">Local Download</td>
+                        <td>${recordingStatus}</td>
                     `;
                     tbody.appendChild(row);
                 });
@@ -590,31 +587,19 @@
                 document.addEventListener('fullscreenchange', handleFullscreenChange);
 
                 recordedChunks = [];
-                
-                // Try to find best supported mime type
                 let mimeType = 'video/webm';
-                if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
-                    mimeType = 'video/webm;codecs=vp9';
-                } else if (MediaRecorder.isTypeSupported('video/webm')) {
-                    mimeType = 'video/webm';
-                } else {
-                    alert("Your browser does not support video recording.");
-                    return;
-                }
+                if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) mimeType = 'video/webm;codecs=vp9';
+                else if (MediaRecorder.isTypeSupported('video/webm')) mimeType = 'video/webm';
+                else { alert("Browser does not support recording."); return; }
 
                 try {
                     mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
-                    mediaRecorder.ondataavailable = event => { 
-                        if (event.data.size > 0) recordedChunks.push(event.data); 
-                    };
+                    mediaRecorder.ondataavailable = event => { if (event.data.size > 0) recordedChunks.push(event.data); };
                     mediaRecorder.start();
                     document.getElementById('rec-indicator').style.display = 'block';
-                    console.log("Recording started with type:", mimeType);
-                    showToast('Recording started', 'success');
-                } catch (e) { 
-                    console.error("Recorder failed", e); 
-                    alert("Video recording failed to start. Proceeding without video."); 
-                }
+                    console.log("Recording started");
+                    showToast('Recording started locally', 'success');
+                } catch (e) { console.error("Recorder failed", e); alert("Video recording failed to start."); }
             } catch (err) { showToast('Camera required', 'warning'); document.exitFullscreen(); return; }
 
             document.getElementById('user-dashboard').classList.add('hidden');
@@ -623,4 +608,162 @@
             window.quizState.isActive = true;
             window.quizState.warnings = 0;
             window.quizState.answers = {};
-            window
+            window.quizState.currentIndex = 0;
+            updateWarningUI();
+            renderQuestion();
+            startProctoring();
+        };
+
+        function renderQuestion() {
+            const q = window.examQuestions[window.quizState.currentIndex];
+            const container = document.getElementById('quiz-content');
+            let html = `
+                <div class="quiz-q-card">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:1rem;">
+                        <span style="color:var(--text-muted);">Question ${window.quizState.currentIndex + 1} of ${window.examQuestions.length}</span>
+                        <span style="font-weight:bold; color:var(--primary);">${q.marks} Marks</span>
+                    </div>
+                    <h3 style="margin-bottom: 1.5rem;">${q.text}</h3>
+                    <div class="options-group">`;
+            q.options.forEach((opt, idx) => {
+                const isChecked = window.quizState.answers[q.id] === idx ? 'checked' : '';
+                html += `<label class="option-label"><input type="radio" name="q_${q.id}" value="${idx}" ${isChecked} onchange="saveAnswer('${q.id}', ${idx})">${opt}</label>`;
+            });
+            html += `</div></div>`;
+            container.innerHTML = html;
+            const nextBtn = document.getElementById('next-q-btn');
+            const submitBtn = document.getElementById('submit-quiz-btn');
+            if (window.quizState.currentIndex === window.examQuestions.length - 1) { nextBtn.classList.add('hidden'); submitBtn.classList.remove('hidden'); }
+            else { nextBtn.classList.remove('hidden'); submitBtn.classList.add('hidden'); }
+        }
+
+        window.saveAnswer = (qId, idx) => { window.quizState.answers[qId] = idx; };
+        window.nextQuestion = () => { if (window.quizState.currentIndex < window.examQuestions.length - 1) { window.quizState.currentIndex++; renderQuestion(); } };
+
+        window.submitQuiz = async () => {
+            stopProctoring();
+            const calculatedScore = calculateScore();
+            
+            // 1. Stop Recording
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+            }
+            await new Promise(r => setTimeout(r, 1000));
+
+            // 2. Prepare Result
+            let resultData = {
+                email: window.currentUser.email,
+                score: calculatedScore,
+                totalMarks: window.totalExamMarks,
+                videoUrl: "Saved Locally", // Set status locally
+                timestamp: Date.now()
+            };
+
+            try {
+                // 3. Save Score to Firestore
+                await addDoc(collection(db, "results"), resultData);
+                showToast("Score Saved", "success");
+            } catch(err) {
+                console.error("Save Error", err);
+                alert("Failed to save score.");
+                return;
+            }
+
+            // 4. DOWNLOAD VIDEO LOCALLY
+            if (recordedChunks.length > 0) {
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `exam_recording_${Date.now()}.webm`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                showToast("Video Downloaded to PC", "success");
+            }
+
+            // 5. Show UI
+            document.getElementById('quiz-interface').classList.add('hidden');
+            document.exitFullscreen().catch(e => {});
+            if (window.quizState.stream) window.quizState.stream.getTracks().forEach(track => track.stop());
+            document.getElementById('result-modal').classList.remove('hidden');
+
+            const scoreEl = document.getElementById('final-score');
+            let current = 0;
+            const interval = setInterval(() => {
+                if (current >= calculatedScore) clearInterval(interval);
+                else { current++; scoreEl.innerText = current; }
+            }, 50);
+        };
+
+        function calculateScore() {
+            let total = 0;
+            window.examQuestions.forEach(q => { if (window.quizState.answers[q.id] === q.correctIndex) total += q.marks; });
+            return total;
+        }
+
+        let proctorInterval, canvas, ctx;
+        function startProctoring() {
+            canvas = document.createElement('canvas'); ctx = canvas.getContext('2d', { willReadFrequently: true });
+            proctorInterval = setInterval(analyzeCameraFrame, 1500);
+        }
+        function stopProctoring() {
+            window.quizState.isActive = false; clearInterval(proctorInterval);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            document.removeEventListener('fullscreenchange', handleFullscreenChange);
+        }
+        function triggerViolation(reason) {
+            if (!window.quizState.isActive) return;
+            window.quizState.warnings++; updateWarningUI();
+            showToast(`Warning: ${reason} (${window.quizState.warnings}/10)`, 'warning');
+            if (window.quizState.warnings >= window.quizState.maxWarnings) terminateExam("Max violations reached.");
+        }
+        function terminateExam(reason) { stopProctoring(); alert(reason); location.reload(); }
+        function updateWarningUI() {
+            const count = window.quizState.warnings;
+            document.getElementById('warning-count').innerText = `${count} / ${window.quizState.maxWarnings}`;
+            const bar = document.getElementById('warning-bar');
+            const percentage = (count / window.quizState.maxWarnings) * 100;
+            bar.style.width = `${percentage}%`;
+            if (count < 4) bar.style.backgroundColor = 'var(--success)';
+            else if (count < 8) bar.style.backgroundColor = 'orange';
+            else bar.style.backgroundColor = 'var(--danger)';
+        }
+        function handleVisibilityChange() { if (document.hidden && window.quizState.isActive) triggerViolation("Tab switched/minimized"); }
+        function handleFullscreenChange() {
+            if (!document.fullscreenElement && window.quizState.isActive) {
+                triggerViolation("Exited fullscreen");
+                setTimeout(() => { if (window.quizState.isActive) document.documentElement.requestFullscreen().catch(e => terminateExam("Failed.")); }, 500);
+            }
+        }
+        function analyzeCameraFrame() {
+            if (!window.quizState.isActive || !window.quizState.stream) return;
+            const video = document.getElementById('webcam');
+            if (video.readyState !== 4) return;
+            canvas.width = 100; canvas.height = 75;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = frame.data;
+            let totalBrightness = 0;
+            for (let i = 0; i < data.length; i += 4) { totalBrightness += (data[i] + data[i+1] + data[i+2]) / 3; }
+            const avgBrightness = totalBrightness / (data.length / 4);
+            const overlay = document.getElementById('cam-overlay');
+            const statusText = document.getElementById('cam-status');
+            if (avgBrightness < 15) {
+                overlay.className = 'cam-overlay warning'; statusText.innerText = "NO FACE / COVERED";
+                triggerViolation("No face detected");
+            } else { overlay.className = 'cam-overlay secure'; statusText.innerText = "SECURE"; }
+        }
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            const title = type === 'success' ? 'Success' : 'Warning';
+            toast.innerHTML = `<div class="toast-title">${title}</div><div class="toast-body">${message}</div>`;
+            container.appendChild(toast);
+            setTimeout(() => { toast.style.animation = 'slideIn 0.3s reverse forwards'; setTimeout(() => toast.remove(), 300); }, 3000);
+        }
+    </script>
+</body>
+</html>
