@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SecureQuiz Pro | AI-Proctored Assessment</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --danger: #dc2626;
+            --success: #16a34a;
+            --background: #f8fafc;
+            --surface: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+        
+        body { background-color: var(--background); color: var(--text-main); height: 100vh; overflow-x: hidden; }
+
+        /* --- Utilities --- */
+        .hidden { display: none !important; }
+        .btn {
+            padding: 0.75rem 1.5rem; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s;
+            font-size: 0.95rem; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+        }
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-primary:hover { background-color: var(--primary-dark); }
+        .btn-danger { background-color: var(--danger); color: white; }
+        .btn-outline { background-color: transparent; border: 1px solid var(--border); color: var(--text-main); }
+        .btn-outline:hover { background-color: var(--background); }
+        
+        .card {
+            background: var(--surface); border-radius: 12px; box-shadow: var(--shadow); padding: 2rem;
+            max-width: 500px; width: 100%; margin: auto; animation: fadeIn 0.4s ease;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        input, select, textarea {
+            width: 100%; padding: 0.75rem; margin-bottom: 1rem; border: 1px solid var(--border); border-radius: 6px;
+            font-size: 1rem; background: #fdfdfd; transition: border 0.2s;
+        }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); }
+
+        /* --- Layouts --- */
+        #app-container { min-height: 100vh; display: flex; flex-direction: column; }
+        
+        /* Navbar */
+        .navbar {
+            background: var(--surface); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100;
+        }
+        .brand { font-size: 1.25rem; font-weight: 800; color: var(--primary); display: flex; align-items: center; gap: 0.5rem; }
+        
+        /* Auth Pages */
+        .auth-wrapper {
+            display: flex; justify-content: center; align-items: center; min-height: 90vh; padding: 1rem;
+        }
+        .role-switch { display: flex; gap: 1rem; margin-bottom: 1.5rem; justify-content: center; }
+        .role-btn { flex: 1; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; text-align: center; opacity: 0.6; }
+        .role-btn.active { background: var(--primary); color: white; border-color: var(--primary); opacity: 1; }
+
+        /* Admin Dashboard */
+        .dashboard-container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; width: 100%; }
+        .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .question-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; }
+        .q-card { background: var(--surface); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border); position: relative; }
+        .q-card h4 { margin-bottom: 0.5rem; }
+        .q-card .badge { display: inline-block; padding: 2px 8px; background: var(--primary); color: white; border-radius: 12px; font-size: 0.75rem; margin-bottom: 0.5rem; }
+        .delete-btn { position: absolute; top: 1rem; right: 1rem; color: var(--danger); background: none; border: none; cursor: pointer; font-size: 1.2rem; }
+
+        /* Quiz Interface (Fullscreen & Secure) */
+        #quiz-interface {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: var(--background);
+            z-index: 2000; display: grid; grid-template-columns: 1fr 300px; overflow: hidden;
+        }
+        .quiz-main { padding: 2rem; overflow-y: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .quiz-sidebar {
+            background: var(--surface); border-left: 1px solid var(--border); padding: 1rem;
+            display: flex; flex-direction: column; gap: 1rem;
+        }
+        
+        /* Camera Feed */
+        .camera-container {
+            width: 100%; height: 200px; background: #000; border-radius: 8px; overflow: hidden; position: relative;
+        }
+        video { width: 100%; height: 100%; object-fit: cover; }
+        .cam-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;
+            border: 2px solid transparent; transition: border-color 0.3s;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .cam-overlay.secure { border-color: var(--success); }
+        .cam-overlay.warning { border-color: var(--danger); }
+        .cam-text { color: white; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.8); text-align: center; padding: 10px;}
+
+        /* Proctor Warnings */
+        .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 5000; display: flex; flex-direction: column; gap: 10px; }
+        .toast {
+            background: var(--surface); padding: 1rem; border-radius: 8px; box-shadow: var(--shadow); border-left: 5px solid var(--primary);
+            min-width: 300px; animation: slideIn 0.3s ease;
+        }
+        .toast.warning { border-left-color: var(--danger); }
+        .toast-title { font-weight: bold; margin-bottom: 4px; font-size: 0.9rem; }
+        .toast-body { font-size: 0.85rem; color: var(--text-muted); }
+
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+        /* Question Display */
+        .quiz-q-card { background: var(--surface); padding: 2rem; border-radius: 12px; width: 100%; max-width: 800px; box-shadow: var(--shadow); margin-bottom: 2rem; }
+        .option-label {
+            display: flex; align-items: center; padding: 1rem; border: 1px solid var(--border); margin-bottom: 0.5rem; border-radius: 6px; cursor: pointer; transition: all 0.2s;
+        }
+        .option-label:hover { background: #f1f5f9; }
+        .option-label input { width: auto; margin: 0 1rem 0 0; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            #quiz-interface { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+            .quiz-sidebar { height: 250px; flex-direction: row; overflow-x: auto; }
+            .camera-container { min-width: 250px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Notification Area -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Navigation (Shared) -->
+    <nav id="navbar" class="navbar hidden">
+        <div class="brand">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            SecureQuiz Pro
+        </div>
+        <div id="user-info" style="display: flex; gap: 1rem; align-items: center;">
+            <span id="user-email" style="font-size: 0.9rem; color: var(--text-muted);"></span>
+            <button onclick="handleLogout()" class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">Logout</button>
+        </div>
+    </nav>
+
+    <!-- Main Application Container -->
+    <div id="app-container">
+        
+        <!-- 1. Authentication View -->
+        <section id="auth-view" class="auth-wrapper">
+            <div class="card">
+                <h2 style="text-align: center; margin-bottom: 1.5rem;">Welcome</h2>
+                
+                <div class="role-switch">
+                    <div id="role-user" class="role-btn active" onclick="switchAuthRole('user')">User</div>
+                    <div id="role-admin" class="role-btn" onclick="switchAuthRole('admin')">Admin</div>
+                </div>
+
+                <form id="auth-form" onsubmit="handleAuth(event)">
+                    <input type="email" id="email" placeholder="Email Address" required>
+                    <input type="password" id="password" placeholder="Password" required>
+                    <button type="submit" id="auth-submit-btn" class="btn btn-primary" style="width: 100%;">Login as User</button>
+                </form>
+
+                <div style="text-align: center; margin: 1rem 0; color: var(--text-muted); font-size: 0.9rem;">OR</div>
+
+                <button onclick="handleGoogleLogin()" class="btn btn-outline" style="width: 100%;">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18" alt="Google">
+                    Continue with Google
+                </button>
+
+                <p id="auth-toggle-text" style="text-align: center; margin-top: 1rem; font-size: 0.9rem;">
+                    Don't have an account? <a href="#" onclick="toggleAuthMode()" style="color: var(--primary);">Sign Up</a>
+                </p>
+            </div>
+        </section>
+
+        <!-- 2. Admin Dashboard View -->
+        <section id="admin-dashboard" class="dashboard-container hidden">
+            <div class="admin-header">
+                <h2>Admin Dashboard</h2>
+                <button onclick="clearAllQuestions()" class="btn btn-danger">Delete All Questions</button>
+            </div>
+
+            <!-- Create Question Form -->
+            <div class="card" style="max-width: 100%; margin-bottom: 2rem;">
+                <h3 style="margin-bottom: 1rem;">Upload Question</h3>
+                <form onsubmit="handleUploadQuestion(event)">
+                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;">
+                        <input type="text" id="q-text" placeholder="Enter Question Text" required>
+                        <input type="number" id="q-marks" placeholder="Marks" value="1" min="1" required>
+                    </div>
+                    
+                    <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                        <div>
+                            <label style="font-size: 0.85rem; color: var(--text-muted);">Options Count</label>
+                            <select id="q-opt-count" onchange="generateOptionInputs()" style="margin-bottom: 0;">
+                                <option value="2">2 Options</option>
+                                <option value="3">3 Options</option>
+                                <option value="4" selected>4 Options</option>
+                                <option value="5">5 Options</option>
+                            </select>
+                        </div>
+                        <div style="flex: 1;">
+                            <label style="font-size: 0.85rem; color: var(--text-muted);">Correct Answer</label>
+                            <select id="q-correct-opt" style="margin-bottom: 0;">
+                                <!-- Populated dynamically -->
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="options-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                        <!-- Option inputs generated here -->
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Add Question to Database</button>
+                </form>
+            </div>
+
+            <h3 style="margin-bottom: 1rem;">Existing Questions</h3>
+            <div id="questions-list" class="question-list">
+                <!-- Questions loaded here -->
+                <p style="color: var(--text-muted);">Loading questions...</p>
+            </div>
+        </section>
+
+        <!-- 3. User Dashboard View -->
+        <section id="user-dashboard" class="dashboard-container hidden">
+            <div class="card" style="text-align: center; padding: 4rem 2rem;">
+                <h2 style="margin-bottom: 1rem;">Ready to start your exam?</h2>
+                <p style="color: var(--text-muted); margin-bottom: 2rem;">
+                    This is a highly secure environment. Your camera will monitor your presence, 
+                    and fullscreen mode is mandatory. <br>
+                    <strong>Warning Limit:</strong> 10. Tab switching or face occlusion triggers warnings.
+                </p>
+                <button onclick="startQuiz()" class="btn btn-primary" style="font-size: 1.2rem; padding: 1rem 2rem;">
+                    Start Secure Quiz
+                </button>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- 4. Quiz Interface (Overlay) -->
+    <section id="quiz-interface" class="hidden">
+        <div class="quiz-main">
+            <div id="quiz-content">
+                <!-- Question Rendered Here -->
+            </div>
+            <div style="margin-top: 2rem; display: flex; gap: 1rem;">
+                <button id="next-q-btn" onclick="nextQuestion()" class="btn btn-primary hidden">Next Question</button>
+                <button id="submit-quiz-btn" onclick="submitQuiz()" class="btn btn-success hidden">Submit Exam</button>
+            </div>
+        </div>
+
+        <aside class="quiz-sidebar">
+            <div class="camera-container">
+                <video id="webcam" autoplay playsinline muted></video>
+                <div id="cam-overlay" class="cam-overlay secure">
+                    <div class="cam-text">
+                        <div id="cam-status">SECURE</div>
+                        <div style="font-size: 0.7rem; margin-top:5px;">AI Monitoring Active</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="background: #fff; padding: 1rem; border-radius: 8px; border: 1px solid var(--border);">
+                <h4 style="margin-bottom: 0.5rem; font-size: 0.9rem; text-transform: uppercase; color: var(--text-muted);">Proctor Status</h4>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <span>Warnings:</span>
+                    <strong id="warning-count" style="color: var(--text-main);">0 / 10</strong>
+                </div>
+                <div style="width: 100%; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
+                    <div id="warning-bar" style="width: 0%; height: 100%; background: var(--success); transition: all 0.3s;"></div>
+                </div>
+            </div>
+
+            <div style="margin-top: auto; font-size: 0.8rem; color: var(--text-muted);">
+                Do not exit fullscreen or cover camera.
+            </div>
+        </aside>
+    </section>
+
+    <!-- Result Modal -->
+    <div id="result-modal" class="hidden" style="position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index: 3000; display: flex; justify-content: center; align-items: center;">
+        <div class="card" style="text-align: center; max-width: 400px;">
+            <h2 style="margin-bottom: 1rem;">Exam Submitted</h2>
+            <p style="font-size: 1.2rem; margin-bottom: 1.5rem;">Your Score:</p>
+            <div id="final-score" style="font-size: 3rem; font-weight: bold; color: var(--primary); margin-bottom: 2rem;">0</div>
+            <button onclick="location.reload()" class="btn btn-primary">Return to Home</button>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+        // --- Firebase Configuration ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyCxwPgFfHWPBNh4Cvc_DYZbntLZWu_uETg",
+            authDomain: "sem6-92dc9.firebaseapp.com",
+            projectId: "sem6-92dc9",
+            storageBucket: "sem6-92dc9.firebasestorage.app",
+            messagingSenderId: "1096656947238",
+            appId: "1:1096656947238:web:eaf40f567e29aa76fffee7",
+            measurementId: "G-YT0KKWGN84"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // --- Global State ---
+        window.currentUser = null;
+        window.questions = [];
+        window.userRole = 'user'; // 'user' or 'admin'
+        window.isSignUp = false;
+
+        // --- Authentication Logic ---
+
+        // Expose functions to window for HTML onclick events
+        window.switchAuthRole = (role) => {
+            window.userRole = role;
+            document.getElementById('role-user').className = role === 'user' ? 'role-btn active' : 'role-btn';
+            document.getElementById('role-admin').className = role === 'admin' ? 'role-btn active' : 'role-btn';
+            
+            const btn = document.getElementById('auth-submit-btn');
+            const toggleText = document.getElementById('auth-toggle-text');
+            
+            if (role === 'admin') {
+                btn.innerText = window.isSignUp ? 'Create Admin Account' : 'Admin Login';
+            } else {
+                btn.innerText = window.isSignUp ? 'Create User Account' : 'Login as User';
+            }
+        };
+
+        window.toggleAuthMode = () => {
+            window.isSignUp = !window.isSignUp;
+            const btn = document.getElementById('auth-submit-btn');
+            const toggleText = document.getElementById('auth-toggle-text');
+            
+            if (window.isSignUp) {
+                btn.innerText = window.userRole === 'admin' ? 'Create Admin Account' : 'Create User Account';
+                toggleText.innerHTML = `Already have an account? <a href="#" onclick="toggleAuthMode()">Login</a>`;
+            } else {
+                btn.innerText = window.userRole === 'admin' ? 'Admin Login' : 'Login as User';
+                toggleText.innerHTML = `Don't have an account? <a href="#" onclick="toggleAuthMode()">Sign Up</a>`;
+            }
+        };
+
+        window.handleAuth = async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                if (window.isSignUp) {
+                    // Create Account
+                    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                    showToast('Account created successfully!', 'success');
+                    // In a real app, we might save the role to Firestore here
+                } else {
+                    // Login
+                    await signInWithEmailAndPassword(auth, email, password);
+                    showToast('Logged in successfully!', 'success');
+                }
+            } catch (error) {
+                showToast(error.message, 'warning');
+            }
+        };
+
+        window.handleGoogleLogin = async () => {
+            const provider = new GoogleAuthProvider();
+            try {
+                await signInWithPopup(auth, provider);
+                showToast('Google Login Successful', 'success');
+            } catch (error) {
+                showToast(error.message, 'warning');
+            }
+        };
+
+        window.handleLogout = () => {
+            signOut(auth);
+            location.reload();
+        };
+
+        // Auth State Observer
+        onAuthStateChanged(auth, (user) => {
+            window.currentUser = user;
+            if (user) {
+                document.getElementById('navbar').classList.remove('hidden');
+                document.getElementById('auth-view').classList.add('hidden');
+                document.getElementById('user-email').innerText = user.email;
+
+                // Route based on role (Simulated by checking the toggle state at login or email)
+                // Since we can't easily store roles in Auth without custom claims, we rely on the UI selection during login for this demo.
+                // NOTE: In production, fetch user role from Firestore 'users' collection.
+                
+                if (window.userRole === 'admin') {
+                    initAdminDashboard();
+                } else {
+                    initUserDashboard();
+                }
+            } else {
+                document.getElementById('navbar').classList.add('hidden');
+                document.getElementById('auth-view').classList.remove('hidden');
+                document.getElementById('admin-dashboard').classList.add('hidden');
+                document.getElementById('user-dashboard').classList.add('hidden');
+            }
+        });
+
+        // --- Admin Dashboard Logic ---
+
+        async function initAdminDashboard() {
+            document.getElementById('admin-dashboard').classList.remove('hidden');
+            loadQuestions();
+            generateOptionInputs(); // Init form
+        }
+
+        window.generateOptionInputs = () => {
+            const count = parseInt(document.getElementById('q-opt-count').value);
+            const container = document.getElementById('options-container');
+            const correctSelect = document.getElementById('q-correct-opt');
+            
+            container.innerHTML = '';
+            correctSelect.innerHTML = '';
+
+            for (let i = 0; i < count; i++) {
+                // Input fields
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.placeholder = `Option ${i + 1}`;
+                input.className = 'opt-input';
+                input.dataset.index = i;
+                container.appendChild(input);
+
+                // Correct option dropdown items
+                const option = document.createElement('option');
+                option.value = i;
+                option.innerText = `Option ${i + 1}`;
+                correctSelect.appendChild(option);
+            }
+        };
+
+        window.handleUploadQuestion = async (e) => {
+            e.preventDefault();
+            const text = document.getElementById('q-text').value;
+            const marks = parseInt(document.getElementById('q-marks').value);
+            const correctIndex = parseInt(document.getElementById('q-correct-opt').value);
+            
+            const optionInputs = document.querySelectorAll('.opt-input');
+            const options = [];
+            optionInputs.forEach(input => options.push(input.value));
+
+            if (options.some(opt => opt.trim() === '')) {
+                showToast('Please fill all options', 'warning');
+                return;
+            }
+
+            try {
+                await addDoc(collection(db, "questions"), {
+                    text,
+                    marks,
+                    options,
+                    correctIndex,
+                    timestamp: Date.now()
+                });
+                showToast('Question added successfully', 'success');
+                e.target.reset();
+                generateOptionInputs();
+                loadQuestions();
+            } catch (error) {
+                showToast('Error adding question: ' + error.message, 'warning');
+            }
+        };
+
+        async function loadQuestions() {
+            const listEl = document.getElementById('questions-list');
+            listEl.innerHTML = 'Loading...';
+            
+            try {
+                const q = query(collection(db, "questions"), orderBy("timestamp", "desc"));
+                const querySnapshot = await getDocs(q);
+                
+                window.questions = [];
+                listEl.innerHTML = '';
+
+                if (querySnapshot.empty) {
+                    listEl.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: var(--text-muted);">No questions uploaded yet.</p>';
+                    return;
+                }
+
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    window.questions.push({ id: doc.id, ...data });
+
+                    const card = document.createElement('div');
+                    card.className = 'q-card';
+                    card.innerHTML = `
+                        <span class="badge">${data.marks} Marks</span>
+                        <h4>${data.text}</h4>
+                        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.5rem;">
+                            Options: ${data.options.join(', ')}
+                        </div>
+                        <button class="delete-btn" onclick="deleteQuestion('${doc.id}')">&times;</button>
+                    `;
+                    listEl.appendChild(card);
+                });
+            } catch (error) {
+                listEl.innerHTML = 'Error loading questions.';
+                console.error(error);
+            }
+        }
+
+        window.deleteQuestion = async (id) => {
+            if(confirm('Are you sure you want to delete this question?')) {
+                try {
+                    await deleteDoc(doc(db, "questions", id));
+                    showToast('Question deleted', 'success');
+                    loadQuestions();
+                } catch (error) {
+                    showToast('Error deleting', 'warning');
+                }
+            }
+        };
+
+        window.clearAllQuestions = async () => {
+            if(confirm('WARNING: This will delete ALL questions. Continue?')) {
+                // Loop through all and delete
+                const snapshot = await getDocs(collection(db, "questions"));
+                const batch = []; // Simple loop for demo
+                for(const docSnap of snapshot.docs) {
+                    await deleteDoc(doc(db, "questions", docSnap.id));
+                }
+                showToast('All questions deleted', 'success');
+                loadQuestions();
+            }
+        };
+
+        // --- User Dashboard Logic ---
+
+        function initUserDashboard() {
+            document.getElementById('user-dashboard').classList.remove('hidden');
+            // Pre-fetch questions to ensure availability
+            loadQuestionsForUser();
+        }
+
+        async function loadQuestionsForUser() {
+            const q = query(collection(db, "questions"));
+            const snapshot = await getDocs(q);
+            window.examQuestions = [];
+            snapshot.forEach(doc => {
+                window.examQuestions.push({ id: doc.id, ...doc.data() });
+            });
+        }
+
+        // --- Quiz & Security Logic ---
+        
+        window.quizState = {
+            currentIndex: 0,
+            answers: {},
+            score: 0,
+            warnings: 0,
+            maxWarnings: 10,
+            isActive: false,
+            stream: null
+        };
+
+        window.startQuiz = async () => {
+            if (window.examQuestions.length === 0) {
+                showToast('No questions available. Please contact admin.', 'warning');
+                return;
+            }
+
+            // 1. Request Fullscreen
+            try {
+                await document.documentElement.requestFullscreen();
+            } catch (err) {
+                showToast('Fullscreen is required to take this exam.', 'warning');
+                return;
+            }
+
+            // 2. Access Camera
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+                window.quizState.stream = stream;
+                document.getElementById('webcam').srcObject = stream;
+            } catch (err) {
+                showToast('Camera access is mandatory for security.', 'warning');
+                document.exitFullscreen();
+                return;
+            }
+
+            // 3. Setup UI
+            document.getElementById('user-dashboard').classList.add('hidden');
+            document.getElementById('navbar').classList.add('hidden');
+            document.getElementById('quiz-interface').classList.remove('hidden');
+            window.quizState.isActive = true;
+            window.quizState.warnings = 0;
+            window.quizState.answers = {};
+            window.quizState.currentIndex = 0;
+            
+            updateWarningUI();
+            renderQuestion();
+            startProctoring();
+        };
+
+        function renderQuestion() {
+            const q = window.examQuestions[window.quizState.currentIndex];
+            const container = document.getElementById('quiz-content');
+            
+            let html = `
+                <div class="quiz-q-card">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:1rem;">
+                        <span style="color:var(--text-muted);">Question ${window.quizState.currentIndex + 1} of ${window.examQuestions.length}</span>
+                        <span style="font-weight:bold; color:var(--primary);">${q.marks} Marks</span>
+                    </div>
+                    <h3 style="margin-bottom: 1.5rem;">${q.text}</h3>
+                    <div class="options-group">
+            `;
+
+            q.options.forEach((opt, idx) => {
+                const isChecked = window.quizState.answers[q.id] === idx ? 'checked' : '';
+                html += `
+                    <label class="option-label">
+                        <input type="radio" name="q_${q.id}" value="${idx}" ${isChecked} onchange="saveAnswer('${q.id}', ${idx})">
+                        ${opt}
+                    </label>
+                `;
+            });
+
+            html += `</div></div>`;
+            container.innerHTML = html;
+
+            // Handle Buttons
+            const nextBtn = document.getElementById('next-q-btn');
+            const submitBtn = document.getElementById('submit-quiz-btn');
+
+            if (window.quizState.currentIndex === window.examQuestions.length - 1) {
+                nextBtn.classList.add('hidden');
+                submitBtn.classList.remove('hidden');
+            } else {
+                nextBtn.classList.remove('hidden');
+                submitBtn.classList.add('hidden');
+            }
+        }
+
+        window.saveAnswer = (qId, idx) => {
+            window.quizState.answers[qId] = idx;
+        };
+
+        window.nextQuestion = () => {
+            if (window.quizState.currentIndex < window.examQuestions.length - 1) {
+                window.quizState.currentIndex++;
+                renderQuestion();
+            }
+        };
+
+        window.submitQuiz = () => {
+            stopProctoring();
+            calculateScore();
+            
+            // Show result
+            document.getElementById('quiz-interface').classList.add('hidden');
+            document.exitFullscreen().catch(e => {});
+            if (window.quizState.stream) {
+                window.quizState.stream.getTracks().forEach(track => track.stop());
+            }
+            document.getElementById('result-modal').classList.remove('hidden');
+        };
+
+        function calculateScore() {
+            let total = 0;
+            window.examQuestions.forEach(q => {
+                if (window.quizState.answers[q.id] === q.correctIndex) {
+                    total += q.marks;
+                }
+            });
+            // Animate score
+            const scoreEl = document.getElementById('final-score');
+            let current = 0;
+            const interval = setInterval(() => {
+                if (current >= total) clearInterval(interval);
+                else {
+                    current++;
+                    scoreEl.innerText = current;
+                }
+            }, 50);
+        }
+
+        // --- Proctoring System (Security) ---
+
+        let proctorInterval;
+        let canvas, ctx;
+
+        function startProctoring() {
+            canvas = document.createElement('canvas');
+            ctx = canvas.getContext('2d', { willReadFrequently: true });
+            
+            // 1. Visibility Change Detection (Tab Switching)
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+            
+            // 2. Fullscreen Change Detection
+            document.addEventListener('fullscreenchange', handleFullscreenChange);
+
+            // 3. Camera/Motion Detection Loop (Every 1 second)
+            proctorInterval = setInterval(analyzeCameraFrame, 1000);
+        }
+
+        function stopProctoring() {
+            window.quizState.isActive = false;
+            clearInterval(proctorInterval);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            document.removeEventListener('fullscreenchange', handleFullscreenChange);
+        }
+
+        function triggerViolation(reason) {
+            if (!window.quizState.isActive) return;
+
+            window.quizState.warnings++;
+            updateWarningUI();
+            showToast(`Security Warning: ${reason} (${window.quizState.warnings}/10)`, 'warning');
+
+            if (window.quizState.warnings >= window.quizState.maxWarnings) {
+                terminateExam("Maximum security violations reached. Exam terminated.");
+            }
+        }
+
+        function terminateExam(reason) {
+            stopProctoring();
+            alert(reason + " You must restart.");
+            location.reload();
+        }
+
+        function updateWarningUI() {
+            const count = window.quizState.warnings;
+            document.getElementById('warning-count').innerText = `${count} / ${window.quizState.maxWarnings}`;
+            
+            const bar = document.getElementById('warning-bar');
+            const percentage = (count / window.quizState.maxWarnings) * 100;
+            bar.style.width = `${percentage}%`;
+
+            if (count < 4) bar.style.backgroundColor = 'var(--success)';
+            else if (count < 8) bar.style.backgroundColor = 'orange';
+            else bar.style.backgroundColor = 'var(--danger)';
+        }
+
+        function handleVisibilityChange() {
+            if (document.hidden) {
+                triggerViolation("Tab switched or window minimized");
+            }
+        }
+
+        function handleFullscreenChange() {
+            if (!document.fullscreenElement && window.quizState.isActive) {
+                triggerViolation("Exited fullscreen mode");
+                // Try to force back or give time
+                setTimeout(() => {
+                    if (window.quizState.isActive) {
+                        document.documentElement.requestFullscreen().catch(e => {
+                            terminateExam("Failed to re-enforce fullscreen.");
+                        });
+                    }
+                }, 500);
+            }
+        }
+
+        function analyzeCameraFrame() {
+            if (!window.quizState.isActive || !window.quizState.stream) return;
+
+            const video = document.getElementById('webcam');
+            if (video.readyState !== 4) return;
+
+            // Set canvas size to video size
+            canvas.width = 100; // Small scale for performance
+            canvas.height = 75;
+            
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Analyze Pixel Data
+            const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = frame.data;
+            let totalBrightness = 0;
+            let pixelCount = data.length / 4;
+
+            for (let i = 0; i < data.length; i += 4) {
+                totalBrightness += (data[i] + data[i+1] + data[i+2]) / 3;
+            }
+
+            const avgBrightness = totalBrightness / pixelCount;
+            const overlay = document.getElementById('cam-overlay');
+            const statusText = document.getElementById('cam-status');
+
+            // Thresholds for detection (Simulated "Half Face" or "Away")
+            // If very dark, camera is covered or user is not in frame
+            if (avgBrightness < 20) {
+                overlay.className = 'cam-overlay warning';
+                statusText.innerText = "NO FACE / COVERED";
+                triggerViolation("No face detected or camera covered");
+            } else {
+                overlay.className = 'cam-overlay secure';
+                statusText.innerText = "SECURE";
+            }
+        }
+
+        // --- Toast Notification Helper ---
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            const title = type === 'success' ? 'Success' : 'Warning';
+            
+            toast.innerHTML = `
+                <div class="toast-title">${title}</div>
+                <div class="toast-body">${message}</div>
+            `;
+            
+            container.appendChild(toast);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.3s reverse forwards'; // rough reverse anim
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+    </script>
+</body>
+</html>
