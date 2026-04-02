@@ -67,18 +67,20 @@
         /* --- QUIZ INTERFACE LAYOUT FIX --- */
         #quiz-interface {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: var(--background);
-            z-index: 2000; display: grid; grid-template-columns: 1fr 300px; overflow: hidden;
+            z-index: 2000; display: grid; grid-template-columns: 1fr 300px; overflow: hidden; /* Critical: No overflow on container */
             transition: grid-template-columns 0.3s ease;
         }
         
+        /* FIX: Explicit height and scrolling to prevent cut-off */
         .quiz-main { 
-            padding: 2rem 2rem 6rem 2rem; /* Extra bottom padding for buttons */
-            overflow-y: auto; 
+            height: 100%; /* Use full height */
+            padding: 2rem; /* Standard padding */
+            overflow-y: auto; /* Enable vertical scrolling HERE */
             display: flex; 
             flex-direction: column; 
-            align-items: center; /* Horizontal Center */
-            justify-content: flex-start; /* Start from top (Fixes cut-off) */
-            height: 100%; 
+            align-items: center; 
+            /* FIX: justify-content: flex-start ensures text starts at top */
+            justify-content: flex-start; 
         }
         
         .quiz-sidebar {
@@ -128,6 +130,7 @@
             background: var(--surface); padding: 2rem; border-radius: 12px; width: 100%; max-width: 900px; box-shadow: var(--shadow); margin-bottom: 2rem; 
             /* Ensure card fits nicely */
             align-self: center;
+            /* Remove margin-bottom to rely on container spacing */
         }
         .option-label {
             display: flex; align-items: center; padding: 1rem; border: 1px solid var(--border); margin-bottom: 0.5rem; border-radius: 6px; cursor: pointer; transition: all 0.2s;
@@ -141,7 +144,7 @@
             #quiz-interface { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
             .quiz-sidebar { height: auto; min-height: 200px; border-left: none; border-top: 1px solid var(--border); flex-direction: row; align-items: center; }
             .camera-container { width: 150px; height: 100px; min-width: 150px; }
-            .quiz-main { padding: 1rem 1rem 4rem 1rem; }
+            .quiz-main { padding: 1rem; }
             .quiz-q-card { padding: 1.5rem; font-size: 0.9rem; }
             .option-label { padding: 0.8rem; font-size: 0.9rem; }
             .btn { font-size: 0.8rem; padding: 0.6rem 1rem; }
