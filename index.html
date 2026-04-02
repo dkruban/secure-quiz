@@ -29,10 +29,13 @@
         .btn {
             padding: 0.75rem 1.5rem; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s;
             font-size: 0.95rem; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
         }
         .btn-primary { background-color: var(--primary); color: white; }
         .btn-primary:hover { background-color: var(--primary-dark); }
         .btn-danger { background-color: var(--danger); color: white; }
+        .btn-success { background-color: var(--success); color: white; }
         .btn-outline { background-color: transparent; border: 1px solid var(--border); color: var(--text-main); }
         .btn-outline:hover { background-color: var(--background); }
         
@@ -75,6 +78,12 @@
         .q-card h4 { margin-bottom: 0.5rem; }
         .q-card .badge { display: inline-block; padding: 2px 8px; background: var(--primary); color: white; border-radius: 12px; font-size: 0.75rem; margin-bottom: 0.5rem; }
         .delete-btn { position: absolute; top: 1rem; right: 1rem; color: var(--danger); background: none; border: none; cursor: pointer; font-size: 1.2rem; }
+
+        /* Results Table */
+        .results-section { background: var(--surface); padding: 2rem; border-radius: 8px; border: 1px solid var(--border); margin-top: 2rem; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid var(--border); }
+        th { color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; }
 
         /* Quiz Interface (Fullscreen & Secure) */
         #quiz-interface {
@@ -205,75 +214,102 @@
         <section id="admin-dashboard" class="dashboard-container hidden">
             <div class="admin-header">
                 <h2>Admin Dashboard</h2>
-                <button onclick="clearAllQuestions()" class="btn btn-danger">Delete All Questions</button>
-            </div>
-
-            <!-- Manual Upload Form -->
-            <div class="card" style="max-width: 100%; margin-bottom: 2rem;">
-                <h3 style="margin-bottom: 1rem;">Upload Single Question</h3>
-                <form onsubmit="handleUploadQuestion(event)">
-                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;">
-                        <input type="text" id="q-text" placeholder="Enter Question Text" required>
-                        <input type="number" id="q-marks" placeholder="Marks" value="1" min="1" required>
-                    </div>
-                    
-                    <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
-                        <div>
-                            <label style="font-size: 0.85rem; color: var(--text-muted);">Options Count</label>
-                            <select id="q-opt-count" onchange="generateOptionInputs()" style="margin-bottom: 0;">
-                                <option value="2">2 Options</option>
-                                <option value="3">3 Options</option>
-                                <option value="4" selected>4 Options</option>
-                                <option value="5">5 Options</option>
-                            </select>
-                        </div>
-                        <div style="flex: 1;">
-                            <label style="font-size: 0.85rem; color: var(--text-muted);">Correct Answer</label>
-                            <select id="q-correct-opt" style="margin-bottom: 0;">
-                                <!-- Populated dynamically -->
-                            </select>
-                        </div>
-                    </div>
-
-                    <div id="options-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
-                        <!-- Option inputs generated here -->
-                    </div>
-
-                    <button type="submit" class="btn btn-primary">Add Question to Database</button>
-                </form>
-                
-                <!-- BULK UPLOAD SECTION -->
-                <div class="bulk-upload-area">
-                    <h3 style="margin-bottom: 1rem;">Bulk Upload (.txt or .docx)</h3>
-                    <div class="format-help">
-                        <strong>File Format Requirements:</strong><br>
-                        Line 1: Question<br>
-                        Lines 2-5: Options (One per line)<br>
-                        Line 6: Correct Option Index (1, 2, 3, or 4)<br>
-                        Line 7: Marks<br>
-                        Line 8: <strong>---</strong> (Separator for next question)
-                        <code>
-                            What is 2+2?<br>
-                            3<br>
-                            4<br>
-                            5<br>
-                            6<br>
-                            2<br>
-                            5<br>
-                            ---<br>
-                            (Next question...)
-                        </code>
-                    </div>
-                    <input type="file" id="bulk-file" accept=".txt,.docx" style="margin-bottom: 0.5rem;">
-                    <button onclick="handleBulkUpload()" class="btn btn-outline" style="width: 100%;">Upload & Process File</button>
+                <div>
+                    <button onclick="clearAllQuestions()" class="btn btn-danger">Delete All Questions</button>
+                    <button onclick="clearAllResults()" class="btn btn-outline">Clear Results</button>
                 </div>
             </div>
 
-            <h3 style="margin-bottom: 1rem;">Existing Questions</h3>
-            <div id="questions-list" class="question-list">
-                <!-- Questions loaded here -->
-                <p style="color: var(--text-muted);">Loading questions...</p>
+            <!-- Tabs -->
+            <div style="margin-bottom: 2rem;">
+                <button class="btn btn-primary" onclick="showAdminTab('questions')">Questions</button>
+                <button class="btn btn-outline" onclick="showAdminTab('results')">Student Results</button>
             </div>
+
+            <!-- TAB: Questions Management -->
+            <div id="admin-tab-questions">
+                <div class="card" style="max-width: 100%; margin-bottom: 2rem;">
+                    <h3 style="margin-bottom: 1rem;">Upload Single Question</h3>
+                    <form onsubmit="handleUploadQuestion(event)">
+                        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;">
+                            <input type="text" id="q-text" placeholder="Enter Question Text" required>
+                            <input type="number" id="q-marks" placeholder="Marks" value="1" min="1" required>
+                        </div>
+                        
+                        <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                            <div>
+                                <label style="font-size: 0.85rem; color: var(--text-muted);">Options Count</label>
+                                <select id="q-opt-count" onchange="generateOptionInputs()" style="margin-bottom: 0;">
+                                    <option value="2">2 Options</option>
+                                    <option value="3">3 Options</option>
+                                    <option value="4" selected>4 Options</option>
+                                    <option value="5">5 Options</option>
+                                </select>
+                            </div>
+                            <div style="flex: 1;">
+                                <label style="font-size: 0.85rem; color: var(--text-muted);">Correct Answer</label>
+                                <select id="q-correct-opt" style="margin-bottom: 0;">
+                                    <!-- Populated dynamically -->
+                                </select>
+                            </div>
+                        </div>
+
+                        <div id="options-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                            <!-- Option inputs generated here -->
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">Add Question to Database</button>
+                    </form>
+                    
+                    <!-- BULK UPLOAD SECTION -->
+                    <div class="bulk-upload-area">
+                        <h3 style="margin-bottom: 1rem;">Bulk Upload (.txt or .docx)</h3>
+                        <div class="format-help">
+                            <strong>File Format Requirements:</strong><br>
+                            Line 1: Question<br>
+                            Lines 2-5: Options (One per line)<br>
+                            Line 6: Correct Option Index (1, 2, 3, or 4)<br>
+                            Line 7: Marks<br>
+                            Line 8: <strong>---</strong> (Separator for next question)
+                        </div>
+                        <input type="file" id="bulk-file" accept=".txt,.docx" style="margin-bottom: 0.5rem;">
+                        <button onclick="handleBulkUpload()" class="btn btn-outline" style="width: 100%;">Upload & Process File</button>
+                    </div>
+                </div>
+
+                <h3 style="margin-bottom: 1rem;">Existing Questions</h3>
+                <div id="questions-list" class="question-list">
+                    <p style="color: var(--text-muted);">Loading questions...</p>
+                </div>
+            </div>
+
+            <!-- TAB: Results Management -->
+            <div id="admin-tab-results" class="hidden">
+                <div class="results-section">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3>Student Exam Results</h3>
+                        <div>
+                            <button onclick="downloadResults('csv')" class="btn btn-success">Download Excel (CSV)</button>
+                            <button onclick="downloadResults('doc')" class="btn btn-primary">Download Word (.doc)</button>
+                            <button onclick="downloadResults('txt')" class="btn btn-outline">Download Text (.txt)</button>
+                        </div>
+                    </div>
+                    <table id="results-table">
+                        <thead>
+                            <tr>
+                                <th>Email</th>
+                                <th>Score</th>
+                                <th>Total Marks</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="4">Loading results...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
         </section>
 
         <!-- 3. User Dashboard View -->
@@ -368,14 +404,19 @@
         // --- Global State ---
         window.currentUser = null;
         window.questions = [];
-        window.userRole = 'user'; // 'user' or 'admin'
+        
+        // FIX 1: Initialize Role from LocalStorage to persist on refresh
+        window.userRole = localStorage.getItem('userRole') || 'user';
+        
         window.isSignUp = false;
+        window.allResults = []; // Store results for downloading
 
         // --- Authentication Logic ---
 
-        // Expose functions to window for HTML onclick events
         window.switchAuthRole = (role) => {
             window.userRole = role;
+            localStorage.setItem('userRole', role); // Save to local storage
+            
             document.getElementById('role-user').className = role === 'user' ? 'role-btn active' : 'role-btn';
             document.getElementById('role-admin').className = role === 'admin' ? 'role-btn active' : 'role-btn';
             
@@ -388,6 +429,11 @@
                 btn.innerText = window.isSignUp ? 'Create User Account' : 'Login as User';
             }
         };
+
+        // Initialize UI based on saved role
+        document.addEventListener('DOMContentLoaded', () => {
+            switchAuthRole(window.userRole);
+        });
 
         window.toggleAuthMode = () => {
             window.isSignUp = !window.isSignUp;
@@ -410,12 +456,9 @@
 
             try {
                 if (window.isSignUp) {
-                    // Create Account
                     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                     showToast('Account created successfully!', 'success');
-                    // In a real app, we might save the role to Firestore here
                 } else {
-                    // Login
                     await signInWithEmailAndPassword(auth, email, password);
                     showToast('Logged in successfully!', 'success');
                 }
@@ -436,6 +479,8 @@
 
         window.handleLogout = () => {
             signOut(auth);
+            // Optional: Clear local storage role on logout to reset default
+            // localStorage.removeItem('userRole'); 
             location.reload();
         };
 
@@ -447,10 +492,7 @@
                 document.getElementById('auth-view').classList.add('hidden');
                 document.getElementById('user-email').innerText = user.email;
 
-                // Route based on role (Simulated by checking the toggle state at login or email)
-                // Since we can't easily store roles in Auth without custom claims, we rely on the UI selection during login for this demo.
-                // NOTE: In production, fetch user role from Firestore 'users' collection.
-                
+                // FIX 1: Route based on LocalStorage role
                 if (window.userRole === 'admin') {
                     initAdminDashboard();
                 } else {
@@ -466,10 +508,21 @@
 
         // --- Admin Dashboard Logic ---
 
+        window.showAdminTab = (tabName) => {
+            if(tabName === 'questions') {
+                document.getElementById('admin-tab-questions').classList.remove('hidden');
+                document.getElementById('admin-tab-results').classList.add('hidden');
+            } else {
+                document.getElementById('admin-tab-questions').classList.add('hidden');
+                document.getElementById('admin-tab-results').classList.remove('hidden');
+                loadResults(); // Load results when tab opens
+            }
+        };
+
         async function initAdminDashboard() {
             document.getElementById('admin-dashboard').classList.remove('hidden');
             loadQuestions();
-            generateOptionInputs(); // Init form
+            generateOptionInputs();
         }
 
         window.generateOptionInputs = () => {
@@ -481,7 +534,6 @@
             correctSelect.innerHTML = '';
 
             for (let i = 0; i < count; i++) {
-                // Input fields
                 const input = document.createElement('input');
                 input.type = 'text';
                 input.placeholder = `Option ${i + 1}`;
@@ -489,7 +541,6 @@
                 input.dataset.index = i;
                 container.appendChild(input);
 
-                // Correct option dropdown items
                 const option = document.createElement('option');
                 option.value = i;
                 option.innerText = `Option ${i + 1}`;
@@ -581,9 +632,7 @@
 
         window.clearAllQuestions = async () => {
             if(confirm('WARNING: This will delete ALL questions. Continue?')) {
-                // Loop through all and delete
                 const snapshot = await getDocs(collection(db, "questions"));
-                const batch = []; // Simple loop for demo
                 for(const docSnap of snapshot.docs) {
                     await deleteDoc(doc(db, "questions", docSnap.id));
                 }
@@ -592,8 +641,7 @@
             }
         };
 
-        // --- Bulk Upload Logic (NEW) ---
-        
+        // --- Bulk Upload Logic ---
         window.handleBulkUpload = async () => {
             const fileInput = document.getElementById('bulk-file');
             const file = fileInput.files[0];
@@ -604,106 +652,159 @@
             }
 
             let text = "";
-
             try {
                 showToast('Reading file...', 'success');
-
                 if (file.name.endsWith('.txt')) {
                     text = await file.text();
                 } else if (file.name.endsWith('.docx')) {
-                    if (typeof mammoth === 'undefined') {
-                        showToast('Mammoth library not loaded. Check internet.', 'warning');
-                        return;
-                    }
+                    if (typeof mammoth === 'undefined') throw new Error('Library not loaded');
                     const arrayBuffer = await file.arrayBuffer();
                     const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
                     text = result.value;
                 } else {
-                    showToast('Unsupported file type. Use .txt or .docx', 'warning');
+                    showToast('Unsupported file type', 'warning');
                     return;
                 }
 
-                // Parse the text
                 const questions = parseTextToQuestions(text);
-
                 if (questions.length === 0) {
-                    showToast('No valid questions found in file.', 'warning');
+                    showToast('No valid questions found.', 'warning');
                     return;
                 }
 
-                // Upload to Firebase
                 showToast(`Found ${questions.length} questions. Uploading...`, 'success');
                 let successCount = 0;
 
                 for (const q of questions) {
                     try {
-                        await addDoc(collection(db, "questions"), {
-                            ...q,
-                            timestamp: Date.now()
-                        });
+                        await addDoc(collection(db, "questions"), { ...q, timestamp: Date.now() });
                         successCount++;
-                    } catch (err) {
-                        console.error("Error uploading q:", err);
-                    }
+                    } catch (err) { console.error(err); }
                 }
 
-                showToast(`Successfully uploaded ${successCount} questions!`, 'success');
-                fileInput.value = ''; // Reset input
-                loadQuestions(); // Refresh list
+                showToast(`Uploaded ${successCount} questions!`, 'success');
+                fileInput.value = '';
+                loadQuestions();
 
             } catch (error) {
-                console.error(error);
-                showToast('Error processing file: ' + error.message, 'warning');
+                showToast('Error: ' + error.message, 'warning');
             }
         };
 
         function parseTextToQuestions(text) {
-            // Split by '---' to get individual question blocks
             const blocks = text.split('---');
             const parsedQuestions = [];
-
             blocks.forEach(block => {
                 const lines = block.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-
-                // Expected format:
-                // Line 0: Question
-                // Line 1-4: Options (Assuming 4 options for now based on standard format)
-                // Line 5: Correct Index (1-based or 0-based? Let's assume user inputs 1,2,3,4 as per common usage)
-                // Line 6: Marks
-
                 if (lines.length >= 7) {
-                    const questionText = lines[0];
-                    const options = lines.slice(1, 5); // Take next 4 lines
-                    const correctAnswerRaw = lines[5];
-                    const marks = parseInt(lines[6]) || 1;
-
-                    // Validate options
-                    if (options.length === 4) {
-                        // Convert 1-based index to 0-based
-                        let correctIndex = parseInt(correctAnswerRaw) - 1;
-                        
-                        // If user typed "1", index is 0. If user typed "Option 1", handle it?
-                        // For simplicity, we require number 1-4.
-                        if (correctIndex >= 0 && correctIndex <= 3) {
-                            parsedQuestions.push({
-                                text: questionText,
-                                options: options,
-                                correctIndex: correctIndex,
-                                marks: marks
-                            });
-                        }
-                    }
+                    const q = {
+                        text: lines[0],
+                        options: lines.slice(1, 5),
+                        correctIndex: parseInt(lines[5]) - 1, // Convert 1-based to 0-based
+                        marks: parseInt(lines[6]) || 1
+                    };
+                    if(q.correctIndex >= 0 && q.correctIndex <= 3) parsedQuestions.push(q);
                 }
             });
-
             return parsedQuestions;
         }
+
+        // --- Admin Results Logic ---
+
+        async function loadResults() {
+            const tbody = document.querySelector('#results-table tbody');
+            tbody.innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
+            window.allResults = []; // Reset local cache
+
+            try {
+                const q = query(collection(db, "results"), orderBy("timestamp", "desc"));
+                const snapshot = await getDocs(q);
+                
+                if (snapshot.empty) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No results yet.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = '';
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    window.allResults.push(data); // Store for download
+
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${data.email}</td>
+                        <td style="font-weight:bold; color:var(--primary);">${data.score}</td>
+                        <td>${data.totalMarks}</td>
+                        <td>${new Date(data.timestamp).toLocaleString()}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                tbody.innerHTML = '<tr><td colspan="4">Error loading results.</td></tr>';
+            }
+        }
+
+        window.clearAllResults = async () => {
+            if(confirm('Delete all student results?')) {
+                const snapshot = await getDocs(collection(db, "results"));
+                for(const docSnap of snapshot.docs) {
+                    await deleteDoc(doc(db, "results", docSnap.id));
+                }
+                loadResults();
+                showToast('Results cleared', 'success');
+            }
+        };
+
+        window.downloadResults = (format) => {
+            if(window.allResults.length === 0) {
+                showToast('No data to download', 'warning');
+                return;
+            }
+
+            let content = "";
+            let mimeType = "text/plain";
+            let filename = `results.${format}`;
+
+            if (format === 'csv') {
+                // Excel compatible CSV
+                content = "Email,Score,Total Marks,Date\n";
+                window.allResults.forEach(r => {
+                    content += `${r.email},${r.score},${r.totalMarks},${new Date(r.timestamp).toLocaleString()}\n`;
+                });
+                mimeType = "text/csv";
+            } else if (format === 'txt') {
+                content = "STUDENT EXAM RESULTS\n====================\n\n";
+                window.allResults.forEach(r => {
+                    content += `Email: ${r.email}\nScore: ${r.score} / ${r.totalMarks}\nDate: ${new Date(r.timestamp).toLocaleString()}\n-------------------------\n`;
+                });
+            } else if (format === 'doc') {
+                // Simple HTML table that Word opens
+                content = `<table border="1">
+                    <thead><tr><th>Email</th><th>Score</th><th>Total Marks</th><th>Date</th></tr></thead>
+                    <tbody>`;
+                window.allResults.forEach(r => {
+                    content += `<tr><td>${r.email}</td><td>${r.score}</td><td>${r.totalMarks}</td><td>${new Date(r.timestamp).toLocaleString()}</td></tr>`;
+                });
+                content += `</tbody></table>`;
+                mimeType = "application/msword"; 
+            }
+
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast(`Downloaded as ${format.toUpperCase()}`, 'success');
+        };
 
         // --- User Dashboard Logic ---
 
         function initUserDashboard() {
             document.getElementById('user-dashboard').classList.remove('hidden');
-            // Pre-fetch questions to ensure availability
             loadQuestionsForUser();
         }
 
@@ -711,8 +812,11 @@
             const q = query(collection(db, "questions"));
             const snapshot = await getDocs(q);
             window.examQuestions = [];
+            window.totalExamMarks = 0;
             snapshot.forEach(doc => {
-                window.examQuestions.push({ id: doc.id, ...doc.data() });
+                const data = doc.data();
+                window.examQuestions.push({ id: doc.id, ...data });
+                window.totalExamMarks += data.marks;
             });
         }
 
@@ -730,30 +834,23 @@
 
         window.startQuiz = async () => {
             if (window.examQuestions.length === 0) {
-                showToast('No questions available. Please contact admin.', 'warning');
+                showToast('No questions available.', 'warning');
                 return;
             }
 
-            // 1. Request Fullscreen
-            try {
-                await document.documentElement.requestFullscreen();
-            } catch (err) {
-                showToast('Fullscreen is required to take this exam.', 'warning');
-                return;
+            try { await document.documentElement.requestFullscreen(); } catch (err) {
+                showToast('Fullscreen required.', 'warning'); return;
             }
 
-            // 2. Access Camera
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
                 window.quizState.stream = stream;
                 document.getElementById('webcam').srcObject = stream;
             } catch (err) {
-                showToast('Camera access is mandatory for security.', 'warning');
-                document.exitFullscreen();
-                return;
+                showToast('Camera access mandatory.', 'warning');
+                document.exitFullscreen(); return;
             }
 
-            // 3. Setup UI
             document.getElementById('user-dashboard').classList.add('hidden');
             document.getElementById('navbar').classList.add('hidden');
             document.getElementById('quiz-interface').classList.remove('hidden');
@@ -794,7 +891,6 @@
             html += `</div></div>`;
             container.innerHTML = html;
 
-            // Handle Buttons
             const nextBtn = document.getElementById('next-q-btn');
             const submitBtn = document.getElementById('submit-quiz-btn');
 
@@ -818,17 +914,40 @@
             }
         };
 
-        window.submitQuiz = () => {
+        window.submitQuiz = async () => {
             stopProctoring();
-            calculateScore();
-            
-            // Show result
+            const calculatedScore = calculateScore();
+
+            // FIX 3: Save Result to Firebase
+            try {
+                await addDoc(collection(db, "results"), {
+                    email: window.currentUser.email,
+                    score: calculatedScore,
+                    totalMarks: window.totalExamMarks,
+                    timestamp: Date.now()
+                });
+            } catch(err) {
+                console.error("Failed to save result", err);
+            }
+
+            // Show result to user
             document.getElementById('quiz-interface').classList.add('hidden');
             document.exitFullscreen().catch(e => {});
             if (window.quizState.stream) {
                 window.quizState.stream.getTracks().forEach(track => track.stop());
             }
             document.getElementById('result-modal').classList.remove('hidden');
+            
+            // Animate score
+            const scoreEl = document.getElementById('final-score');
+            let current = 0;
+            const interval = setInterval(() => {
+                if (current >= calculatedScore) clearInterval(interval);
+                else {
+                    current++;
+                    scoreEl.innerText = current;
+                }
+            }, 50);
         };
 
         function calculateScore() {
@@ -838,16 +957,7 @@
                     total += q.marks;
                 }
             });
-            // Animate score
-            const scoreEl = document.getElementById('final-score');
-            let current = 0;
-            const interval = setInterval(() => {
-                if (current >= total) clearInterval(interval);
-                else {
-                    current++;
-                    scoreEl.innerText = current;
-                }
-            }, 50);
+            return total;
         }
 
         // --- Proctoring System (Security) ---
@@ -859,14 +969,11 @@
             canvas = document.createElement('canvas');
             ctx = canvas.getContext('2d', { willReadFrequently: true });
             
-            // 1. Visibility Change Detection (Tab Switching)
             document.addEventListener('visibilitychange', handleVisibilityChange);
-            
-            // 2. Fullscreen Change Detection
             document.addEventListener('fullscreenchange', handleFullscreenChange);
-
-            // 3. Camera/Motion Detection Loop (Every 1 second)
-            proctorInterval = setInterval(analyzeCameraFrame, 1000);
+            
+            // Check every 1.5 seconds to allow some movement but catch out-of-screen
+            proctorInterval = setInterval(analyzeCameraFrame, 1500);
         }
 
         function stopProctoring() {
@@ -884,7 +991,7 @@
             showToast(`Security Warning: ${reason} (${window.quizState.warnings}/10)`, 'warning');
 
             if (window.quizState.warnings >= window.quizState.maxWarnings) {
-                terminateExam("Maximum security violations reached. Exam terminated.");
+                terminateExam("Maximum violations reached.");
             }
         }
 
@@ -909,18 +1016,17 @@
 
         function handleVisibilityChange() {
             if (document.hidden) {
-                triggerViolation("Tab switched or window minimized");
+                triggerViolation("Tab switched/minimized");
             }
         }
 
         function handleFullscreenChange() {
             if (!document.fullscreenElement && window.quizState.isActive) {
-                triggerViolation("Exited fullscreen mode");
-                // Try to force back or give time
+                triggerViolation("Exited fullscreen");
                 setTimeout(() => {
                     if (window.quizState.isActive) {
                         document.documentElement.requestFullscreen().catch(e => {
-                            terminateExam("Failed to re-enforce fullscreen.");
+                            terminateExam("Fullscreen enforcement failed.");
                         });
                     }
                 }, 500);
@@ -929,17 +1035,13 @@
 
         function analyzeCameraFrame() {
             if (!window.quizState.isActive || !window.quizState.stream) return;
-
             const video = document.getElementById('webcam');
             if (video.readyState !== 4) return;
 
-            // Set canvas size to video size
-            canvas.width = 100; // Small scale for performance
+            canvas.width = 100;
             canvas.height = 75;
-            
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             
-            // Analyze Pixel Data
             const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const data = frame.data;
             let totalBrightness = 0;
@@ -953,9 +1055,9 @@
             const overlay = document.getElementById('cam-overlay');
             const statusText = document.getElementById('cam-status');
 
-            // Thresholds for detection (Simulated "Half Face" or "Away")
-            // If very dark, camera is covered or user is not in frame
-            if (avgBrightness < 20) {
+            // FIX 2: Stricter Threshold
+            // If very dark (camera covered or lights off), warn.
+            if (avgBrightness < 15) {
                 overlay.className = 'cam-overlay warning';
                 statusText.innerText = "NO FACE / COVERED";
                 triggerViolation("No face detected or camera covered");
@@ -965,12 +1067,10 @@
             }
         }
 
-        // --- Toast Notification Helper ---
         function showToast(message, type = 'success') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
-            
             const title = type === 'success' ? 'Success' : 'Warning';
             
             toast.innerHTML = `
@@ -979,10 +1079,8 @@
             `;
             
             container.appendChild(toast);
-            
-            // Remove after 3 seconds
             setTimeout(() => {
-                toast.style.animation = 'slideIn 0.3s reverse forwards'; // rough reverse anim
+                toast.style.animation = 'slideIn 0.3s reverse forwards';
                 setTimeout(() => toast.remove(), 300);
             }, 3000);
         }
