@@ -41,7 +41,7 @@
             width: 100%; padding: 0.75rem; margin-bottom: 1rem; border: 1px solid var(--border); border-radius: 6px;
             font-size: 1rem; background: #fdfdfd; transition: border 0.2s;
         }
-        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); }
+        input:focus, select, textarea:focus { outline: none; border-color: var(--primary); }
         #app-container { min-height: 100vh; display: flex; flex-direction: column; }
         .navbar {
             background: var(--surface); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center;
@@ -67,20 +67,19 @@
         /* --- QUIZ INTERFACE LAYOUT FIX --- */
         #quiz-interface {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: var(--background);
-            z-index: 2000; display: grid; grid-template-columns: 1fr 300px; overflow: hidden; /* Critical: No overflow on container */
+            z-index: 2000; display: grid; grid-template-columns: 1fr 300px; overflow: hidden; 
             transition: grid-template-columns 0.3s ease;
         }
         
-        /* FIX: Explicit height and scrolling to prevent cut-off */
         .quiz-main { 
-            height: 100%; /* Use full height */
-            padding: 2rem; /* Standard padding */
-            overflow-y: auto; /* Enable vertical scrolling HERE */
+            height: 100%; 
+            padding: 1.5rem; /* Reduced padding to save space */
+            overflow-y: auto; 
             display: flex; 
             flex-direction: column; 
             align-items: center; 
-            /* FIX: justify-content: flex-start ensures text starts at top */
-            justify-content: flex-start; 
+            justify-content: flex-start; /* Starts at top */
+            width: 100%;
         }
         
         .quiz-sidebar {
@@ -126,19 +125,36 @@
         .toast-title { font-weight: bold; margin-bottom: 4px; font-size: 0.9rem; }
         .toast-body { font-size: 0.85rem; color: var(--text-muted); }
         @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        
         .quiz-q-card { 
-            background: var(--surface); padding: 2rem; border-radius: 12px; width: 100%; max-width: 900px; box-shadow: var(--shadow); margin-bottom: 2rem; 
-            /* Ensure card fits nicely */
-            align-self: center;
-            /* Remove margin-bottom to rely on container spacing */
+            background: var(--surface); padding: 1.5rem; border-radius: 12px; width: 100%; 
+            /* FIX: Word wrapping ensures text splits to the next line instead of being cut off */
+            word-wrap: break-word; 
+            box-shadow: var(--shadow); 
+            margin-bottom: 2rem; 
+            /* Center the card but allow it to expand height if text is long */
+            width: 100%; 
+            max-width: 900px;
         }
+        .quiz-q-card h3 {
+            margin-bottom: 1.5rem; 
+            /* Ensure text splits naturally */
+            word-wrap: break-word; 
+            overflow-wrap: break-word; /* Force wrapping for very long words */
+            line-height: 1.5rem; /* Better line height for readability */
+        }
+        .options-group { width: 100%; }
         .option-label {
             display: flex; align-items: center; padding: 1rem; border: 1px solid var(--border); margin-bottom: 0.5rem; border-radius: 6px; cursor: pointer; transition: all 0.2s;
-            width: 100%;
         }
         .option-label:hover { background: #f1f5f9; }
         .option-label input { width: auto; margin: 0 1rem 0 0; }
         
+        .nav-buttons {
+            display: flex; gap: 1rem; margin-top: 1rem; /* Ensure buttons are visible at the bottom of the card */
+            width: 100%; justify-content: center;
+        }
+
         /* Mobile Responsive Fixes */
         @media (max-width: 768px) {
             #quiz-interface { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
@@ -179,7 +195,7 @@
 
     <nav id="navbar" class="navbar hidden">
         <div class="brand">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
             SecureQuiz Pro
         </div>
         <div id="user-info" style="display: flex; gap: 1rem; align-items: center;">
@@ -208,7 +224,7 @@
                     Continue with Google
                 </button>
                 <p id="auth-toggle-text" style="text-align: center; margin-top: 1rem; font-size: 0.9rem;">
-                    Don't have an account? <a href="#" onclick="toggleAuthMode()" style="color: var(--primary);">Sign Up</a>
+                    Don't have an just an account? <a href="#" onclick="toggleAuthMode()" style="color: var(--primary);">Sign Up</a>
                 </p>
             </div>
         </section>
@@ -243,7 +259,7 @@
                                     <option value="5">5 Options</option>
                                 </select>
                             </div>
-                            <div style="flex: 1;">
+                            <div style="flex: 1rem;">
                                 <label style="font-size: 0.85rem; color: var(--text-muted);">Correct Answer</label>
                                 <select id="q-correct-opt" style="margin-bottom: 0;"></select>
                             </div>
@@ -306,8 +322,14 @@
     <section id="quiz-interface" class="hidden">
         <div class="quiz-main">
             <div id="quiz-content"></div>
-            <div style="margin-top: 2rem; display: flex; gap: 1rem; width: 100%; justify-content: center;">
+            
+            <!-- Buttons Container -->
+            <div class="nav-buttons">
+                <!-- Previous Button -->
+                <button id="prev-q-btn" onclick="prevQuestion()" class="btn btn-outline hidden">Previous Question</button>
+                <!-- Next Button -->
                 <button id="next-q-btn" onclick="nextQuestion()" class="btn btn-primary hidden">Next Question</button>
+                <!-- Submit Button -->
                 <button id="submit-quiz-btn" onclick="submitQuiz()" class="btn btn-success hidden">Submit Exam</button>
             </div>
         </div>
@@ -547,7 +569,7 @@
             tbody.innerHTML = '<tr><td colspan="5">Loading results...</td></tr>';
             window.allResults = [];
             try {
-                const q = query(collection(db, "results"), orderBy("timestamp", "desc"));
+                const q = query(collection(db, "results"), orderBy("timestamp", "desc");
                 const snapshot = await getDocs(q);
                 if (snapshot.empty) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No results.</td></tr>'; return; }
                 tbody.innerHTML = '';
@@ -669,8 +691,9 @@
                         <span style="color:var(--text-muted);">Question ${window.quizState.currentIndex + 1} of ${window.examQuestions.length}</span>
                         <span style="font-weight:bold; color:var(--primary); font-size:0.9rem; background:#e0e7ff; padding: 4px 12px; border-radius: 12px;">${q.marks} Marks</span>
                     </div>
-                    <h3 style="margin-bottom: 1.5rem; line-height: 1.5;">${q.text}</h3>
+                    <h3 style="margin-bottom: 1.5rem;">${q.text}</h3>
                     <div class="options-group">`;
+            
             q.options.forEach((opt, idx) => {
                 const isChecked = window.quizState.answers[q.id] === idx ? 'checked' : '';
                 html += `<label class="option-label"><input type="radio" name="q_${q.id}" value="${idx}" ${isChecked} onchange="saveAnswer('${q.id}', ${idx})">${opt}</label>`;
@@ -678,9 +701,17 @@
             html += `</div></div>`;
             container.innerHTML = html;
             
+            // Button Visibility Logic
+            const prevBtn = document.getElementById('prev-q-btn');
             const nextBtn = document.getElementById('next-q-btn');
             const submitBtn = document.getElementById('submit-quiz-btn');
             
+            if (window.quizState.currentIndex === 0) {
+                prevBtn.classList.add('hidden');
+            } else {
+                prevBtn.classList.remove('hidden');
+            }
+
             if (window.quizState.currentIndex === window.examQuestions.length - 1) { 
                 nextBtn.classList.add('hidden'); 
                 submitBtn.classList.remove('hidden'); 
@@ -691,7 +722,21 @@
         }
 
         window.saveAnswer = (qId, idx) => { window.quizState.answers[qId] = idx; };
-        window.nextQuestion = () => { if (window.quizState.currentIndex < window.examQuestions.length - 1) { window.quizState.currentIndex++; renderQuestion(); } };
+        
+        // NEW: Previous Function
+        window.prevQuestion = () => { 
+            if (window.quizState.currentIndex > 0) { 
+                window.quizState.currentIndex--; 
+                renderQuestion(); 
+            } 
+        };
+
+        window.nextQuestion = () => { 
+            if (window.quizState.currentIndex < window.examQuestions.length - 1) { 
+                window.quizState.currentIndex++; 
+                renderQuestion(); 
+            } 
+        };
 
         window.submitQuiz = async () => {
             stopProctoring();
@@ -765,7 +810,7 @@
                 a.download = `${safeEmail}_Exam_${Date.now()}.webm`;
                 document.body.appendChild(a);
                 a.click();
-                window.URL.revokeObjectURL(url);
+                window.URL.reconnectObjectURL(url);
                 showToast("Video Downloaded", "success");
             }
         }
