@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SecureQuiz Pro | AI-Proctored Assessment</title>
-    <!-- Mammoth.js for reading Word Documents -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
     <style>
         :root {
@@ -19,18 +18,13 @@
             --border: #e2e8f0;
             --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
         }
-
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
-        
         body { background-color: var(--background); color: var(--text-main); height: 100vh; overflow-x: hidden; }
-
-        /* --- Utilities --- */
         .hidden { display: none !important; }
         .btn {
             padding: 0.75rem 1.5rem; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s;
             font-size: 0.95rem; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
-            margin-right: 0.5rem;
-            margin-bottom: 0.5rem;
+            margin-right: 0.5rem; margin-bottom: 0.5rem;
         }
         .btn-primary { background-color: var(--primary); color: white; }
         .btn-primary:hover { background-color: var(--primary-dark); }
@@ -38,39 +32,26 @@
         .btn-success { background-color: var(--success); color: white; }
         .btn-outline { background-color: transparent; border: 1px solid var(--border); color: var(--text-main); }
         .btn-outline:hover { background-color: var(--background); }
-        
         .card {
             background: var(--surface); border-radius: 12px; box-shadow: var(--shadow); padding: 2rem;
             max-width: 500px; width: 100%; margin: auto; animation: fadeIn 0.4s ease;
         }
-
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
         input, select, textarea {
             width: 100%; padding: 0.75rem; margin-bottom: 1rem; border: 1px solid var(--border); border-radius: 6px;
             font-size: 1rem; background: #fdfdfd; transition: border 0.2s;
         }
         input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); }
-
-        /* --- Layouts --- */
         #app-container { min-height: 100vh; display: flex; flex-direction: column; }
-        
-        /* Navbar */
         .navbar {
             background: var(--surface); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center;
             border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100;
         }
         .brand { font-size: 1.25rem; font-weight: 800; color: var(--primary); display: flex; align-items: center; gap: 0.5rem; }
-        
-        /* Auth Pages */
-        .auth-wrapper {
-            display: flex; justify-content: center; align-items: center; min-height: 90vh; padding: 1rem;
-        }
+        .auth-wrapper { display: flex; justify-content: center; align-items: center; min-height: 90vh; padding: 1rem; }
         .role-switch { display: flex; gap: 1rem; margin-bottom: 1.5rem; justify-content: center; }
         .role-btn { flex: 1; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; text-align: center; opacity: 0.6; }
         .role-btn.active { background: var(--primary); color: white; border-color: var(--primary); opacity: 1; }
-
-        /* Admin Dashboard */
         .dashboard-container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; width: 100%; }
         .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
         .question-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; }
@@ -78,14 +59,10 @@
         .q-card h4 { margin-bottom: 0.5rem; word-wrap: break-word; }
         .q-card .badge { display: inline-block; padding: 2px 8px; background: var(--primary); color: white; border-radius: 12px; font-size: 0.75rem; margin-bottom: 0.5rem; }
         .delete-btn { position: absolute; top: 1rem; right: 1rem; color: var(--danger); background: none; border: none; cursor: pointer; font-size: 1.2rem; }
-
-        /* Results Table */
         .results-section { background: var(--surface); padding: 2rem; border-radius: 8px; border: 1px solid var(--border); margin-top: 2rem; overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
         th, td { text-align: left; padding: 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
         th { color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; }
-
-        /* Quiz Interface (Fullscreen & Secure) */
         #quiz-interface {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: var(--background);
             z-index: 2000; display: grid; grid-template-columns: 1fr 300px; overflow: hidden;
@@ -95,8 +72,6 @@
             background: var(--surface); border-left: 1px solid var(--border); padding: 1rem;
             display: flex; flex-direction: column; gap: 1rem;
         }
-        
-        /* Camera Feed */
         .camera-container {
             width: 100%; height: 200px; background: #000; border-radius: 8px; overflow: hidden; position: relative;
         }
@@ -115,8 +90,6 @@
             animation: pulse 1s infinite; display: none;
         }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
-
-        /* Proctor Warnings */
         .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 5000; display: flex; flex-direction: column; gap: 10px; }
         .toast {
             background: var(--surface); padding: 1rem; border-radius: 8px; box-shadow: var(--shadow); border-left: 5px solid var(--primary);
@@ -125,25 +98,18 @@
         .toast.warning { border-left-color: var(--danger); }
         .toast-title { font-weight: bold; margin-bottom: 4px; font-size: 0.9rem; }
         .toast-body { font-size: 0.85rem; color: var(--text-muted); }
-
         @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
-
-        /* Question Display */
         .quiz-q-card { background: var(--surface); padding: 2rem; border-radius: 12px; width: 100%; max-width: 800px; box-shadow: var(--shadow); margin-bottom: 2rem; }
         .option-label {
             display: flex; align-items: center; padding: 1rem; border: 1px solid var(--border); margin-bottom: 0.5rem; border-radius: 6px; cursor: pointer; transition: all 0.2s;
         }
         .option-label:hover { background: #f1f5f9; }
         .option-label input { width: auto; margin: 0 1rem 0 0; }
-
-        /* Responsive */
         @media (max-width: 768px) {
             #quiz-interface { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
             .quiz-sidebar { height: 250px; flex-direction: row; overflow-x: auto; }
             .camera-container { min-width: 250px; }
         }
-        
-        /* Bulk Upload Specifics */
         .bulk-upload-area {
             margin-top: 2rem;
             padding-top: 2rem;
@@ -169,10 +135,8 @@
 </head>
 <body>
 
-    <!-- Notification Area -->
     <div id="toast-container" class="toast-container"></div>
 
-    <!-- Navigation (Shared) -->
     <nav id="navbar" class="navbar hidden">
         <div class="brand">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
@@ -184,39 +148,31 @@
         </div>
     </nav>
 
-    <!-- Main Application Container -->
     <div id="app-container">
         
-        <!-- 1. Authentication View -->
         <section id="auth-view" class="auth-wrapper">
             <div class="card">
                 <h2 style="text-align: center; margin-bottom: 1.5rem;">Welcome</h2>
-                
                 <div class="role-switch">
                     <div id="role-user" class="role-btn active" onclick="switchAuthRole('user')">User</div>
                     <div id="role-admin" class="role-btn" onclick="switchAuthRole('admin')">Admin</div>
                 </div>
-
                 <form id="auth-form" onsubmit="handleAuth(event)">
                     <input type="email" id="email" placeholder="Email Address" required>
                     <input type="password" id="password" placeholder="Password" required>
                     <button type="submit" id="auth-submit-btn" class="btn btn-primary" style="width: 100%;">Login as User</button>
                 </form>
-
                 <div style="text-align: center; margin: 1rem 0; color: var(--text-muted); font-size: 0.9rem;">OR</div>
-
                 <button onclick="handleGoogleLogin()" class="btn btn-outline" style="width: 100%;">
                     <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18" alt="Google">
                     Continue with Google
                 </button>
-
                 <p id="auth-toggle-text" style="text-align: center; margin-top: 1rem; font-size: 0.9rem;">
                     Don't have an account? <a href="#" onclick="toggleAuthMode()" style="color: var(--primary);">Sign Up</a>
                 </p>
             </div>
         </section>
 
-        <!-- 2. Admin Dashboard View -->
         <section id="admin-dashboard" class="dashboard-container hidden">
             <div class="admin-header">
                 <h2>Admin Dashboard</h2>
@@ -225,14 +181,10 @@
                     <button onclick="clearAllResults()" class="btn btn-outline">Clear Results</button>
                 </div>
             </div>
-
-            <!-- Tabs -->
             <div style="margin-bottom: 2rem;">
                 <button class="btn btn-primary" onclick="showAdminTab('questions')">Questions</button>
                 <button class="btn btn-outline" onclick="showAdminTab('results')">Student Results & Videos</button>
             </div>
-
-            <!-- TAB: Questions Management -->
             <div id="admin-tab-questions">
                 <div class="card" style="max-width: 100%; margin-bottom: 2rem;">
                     <h3 style="margin-bottom: 1rem;">Upload Single Question</h3>
@@ -241,7 +193,6 @@
                             <input type="text" id="q-text" placeholder="Enter Question Text" required>
                             <input type="number" id="q-marks" placeholder="Marks" value="1" min="1" required>
                         </div>
-                        
                         <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
                             <div>
                                 <label style="font-size: 0.85rem; color: var(--text-muted);">Options Count</label>
@@ -254,20 +205,12 @@
                             </div>
                             <div style="flex: 1;">
                                 <label style="font-size: 0.85rem; color: var(--text-muted);">Correct Answer</label>
-                                <select id="q-correct-opt" style="margin-bottom: 0;">
-                                    <!-- Populated dynamically -->
-                                </select>
+                                <select id="q-correct-opt" style="margin-bottom: 0;"></select>
                             </div>
                         </div>
-
-                        <div id="options-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
-                            <!-- Option inputs generated here -->
-                        </div>
-
+                        <div id="options-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;"></div>
                         <button type="submit" class="btn btn-primary">Add Question to Database</button>
                     </form>
-                    
-                    <!-- BULK UPLOAD SECTION -->
                     <div class="bulk-upload-area">
                         <h3 style="margin-bottom: 1rem;">Bulk Upload (.txt or .docx)</h3>
                         <div class="format-help">
@@ -282,14 +225,9 @@
                         <button onclick="handleBulkUpload()" class="btn btn-outline" style="width: 100%;">Upload & Process File</button>
                     </div>
                 </div>
-
                 <h3 style="margin-bottom: 1rem;">Existing Questions</h3>
-                <div id="questions-list" class="question-list">
-                    <p style="color: var(--text-muted);">Loading questions...</p>
-                </div>
+                <div id="questions-list" class="question-list"><p style="color: var(--text-muted);">Loading questions...</p></div>
             </div>
-
-            <!-- TAB: Results Management -->
             <div id="admin-tab-results" class="hidden">
                 <div class="results-section">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap;">
@@ -301,25 +239,13 @@
                         </div>
                     </div>
                     <table id="results-table">
-                        <thead>
-                            <tr>
-                                <th>Email</th>
-                                <th>Score</th>
-                                <th>Total Marks</th>
-                                <th>Date</th>
-                                <th>Exam Video</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr><td colspan="5">Loading results...</td></tr>
-                        </tbody>
+                        <thead><tr><th>Email</th><th>Score</th><th>Total Marks</th><th>Date</th><th>Exam Video</th></tr></thead>
+                        <tbody><tr><td colspan="5">Loading results...</td></tr></tbody>
                     </table>
                 </div>
             </div>
-
         </section>
 
-        <!-- 3. User Dashboard View -->
         <section id="user-dashboard" class="dashboard-container hidden">
             <div class="card" style="text-align: center; padding: 4rem 2rem;">
                 <h2 style="margin-bottom: 1rem;">Ready to start your exam?</h2>
@@ -335,21 +261,16 @@
                 </button>
             </div>
         </section>
-
     </div>
 
-    <!-- 4. Quiz Interface (Overlay) -->
     <section id="quiz-interface" class="hidden">
         <div class="quiz-main">
-            <div id="quiz-content">
-                <!-- Question Rendered Here -->
-            </div>
+            <div id="quiz-content"></div>
             <div style="margin-top: 2rem; display: flex; gap: 1rem;">
                 <button id="next-q-btn" onclick="nextQuestion()" class="btn btn-primary hidden">Next Question</button>
                 <button id="submit-quiz-btn" onclick="submitQuiz()" class="btn btn-success hidden">Submit Exam</button>
             </div>
         </div>
-
         <aside class="quiz-sidebar">
             <div class="camera-container">
                 <video id="webcam" autoplay playsinline muted></video>
@@ -361,7 +282,6 @@
                 </div>
                 <div id="rec-indicator" class="rec-indicator"></div>
             </div>
-            
             <div style="background: #fff; padding: 1rem; border-radius: 8px; border: 1px solid var(--border);">
                 <h4 style="margin-bottom: 0.5rem; font-size: 0.9rem; text-transform: uppercase; color: var(--text-muted);">Proctor Status</h4>
                 <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
@@ -372,14 +292,10 @@
                     <div id="warning-bar" style="width: 0%; height: 100%; background: var(--success); transition: all 0.3s;"></div>
                 </div>
             </div>
-
-            <div style="margin-top: auto; font-size: 0.8rem; color: var(--text-muted);">
-                Do not exit fullscreen or cover camera.
-            </div>
+            <div style="margin-top: auto; font-size: 0.8rem; color: var(--text-muted);">Do not exit fullscreen or cover camera.</div>
         </aside>
     </section>
 
-    <!-- Result Modal -->
     <div id="result-modal" class="hidden" style="position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index: 3000; display: flex; justify-content: center; align-items: center;">
         <div class="card" style="text-align: center; max-width: 400px;">
             <h2 style="margin-bottom: 1rem;">Exam Submitted</h2>
@@ -389,14 +305,12 @@
         </div>
     </div>
 
-    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, updateDoc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
         import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js";
 
-        // --- Firebase Configuration ---
         const firebaseConfig = {
             apiKey: "AIzaSyCxwPgFfHWPBNh4Cvc_DYZbntLZWu_uETg",
             authDomain: "sem6-92dc9.firebaseapp.com",
@@ -407,13 +321,11 @@
             measurementId: "G-YT0KKWGN84"
         };
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
         const storage = getStorage(app);
 
-        // --- Global State ---
         window.currentUser = null;
         window.questions = [];
         window.userRole = localStorage.getItem('userRole') || 'user';
@@ -422,35 +334,28 @@
         let mediaRecorder;
         let recordedChunks = [];
 
-        // --- Authentication Logic ---
-
         window.switchAuthRole = (role) => {
             window.userRole = role;
             localStorage.setItem('userRole', role);
             document.getElementById('role-user').className = role === 'user' ? 'role-btn active' : 'role-btn';
             document.getElementById('role-admin').className = role === 'admin' ? 'role-btn active' : 'role-btn';
             const btn = document.getElementById('auth-submit-btn');
-            if (role === 'admin') {
-                btn.innerText = window.isSignUp ? 'Create Admin Account' : 'Admin Login';
-            } else {
-                btn.innerText = window.isSignUp ? 'Create User Account' : 'Login as User';
-            }
+            btn.innerText = (role === 'admin') 
+                ? (window.isSignUp ? 'Create Admin Account' : 'Admin Login')
+                : (window.isSignUp ? 'Create User Account' : 'Login as User');
         };
 
-        document.addEventListener('DOMContentLoaded', () => {
-            switchAuthRole(window.userRole);
-        });
+        document.addEventListener('DOMContentLoaded', () => switchAuthRole(window.userRole));
 
         window.toggleAuthMode = () => {
             window.isSignUp = !window.isSignUp;
             const btn = document.getElementById('auth-submit-btn');
-            if (window.isSignUp) {
-                btn.innerText = window.userRole === 'admin' ? 'Create Admin Account' : 'Create User Account';
-                document.getElementById('auth-toggle-text').innerHTML = `Already have an account? <a href="#" onclick="toggleAuthMode()">Login</a>`;
-            } else {
-                btn.innerText = window.userRole === 'admin' ? 'Admin Login' : 'Login as User';
-                document.getElementById('auth-toggle-text').innerHTML = `Don't have an account? <a href="#" onclick="toggleAuthMode()">Sign Up</a>`;
-            }
+            btn.innerText = window.isSignUp 
+                ? (window.userRole === 'admin' ? 'Create Admin Account' : 'Create User Account')
+                : (window.userRole === 'admin' ? 'Admin Login' : 'Login as User');
+            document.getElementById('auth-toggle-text').innerHTML = window.isSignUp
+                ? `Already have an account? <a href="#" onclick="toggleAuthMode()">Login</a>`
+                : `Don't have an account? <a href="#" onclick="toggleAuthMode()">Sign Up</a>`;
         };
 
         window.handleAuth = async (e) => {
@@ -465,8 +370,7 @@
         };
 
         window.handleGoogleLogin = async () => {
-            const provider = new GoogleAuthProvider();
-            try { await signInWithPopup(auth, provider); showToast('Google Login Successful', 'success'); } 
+            try { await signInWithPopup(auth, new GoogleAuthProvider()); showToast('Google Login Successful', 'success'); } 
             catch (error) { showToast(error.message, 'warning'); }
         };
 
@@ -488,17 +392,10 @@
             }
         });
 
-        // --- Admin Dashboard Logic ---
-
         window.showAdminTab = (tabName) => {
-            if(tabName === 'questions') {
-                document.getElementById('admin-tab-questions').classList.remove('hidden');
-                document.getElementById('admin-tab-results').classList.add('hidden');
-            } else {
-                document.getElementById('admin-tab-questions').classList.add('hidden');
-                document.getElementById('admin-tab-results').classList.remove('hidden');
-                loadResults();
-            }
+            document.getElementById('admin-tab-questions').classList.toggle('hidden', tabName !== 'questions');
+            document.getElementById('admin-tab-results').classList.toggle('hidden', tabName !== 'results');
+            if (tabName === 'results') loadResults();
         };
 
         async function initAdminDashboard() {
@@ -530,10 +427,7 @@
             try {
                 await addDoc(collection(db, "questions"), { text, marks, options, correctIndex, timestamp: Date.now() });
                 showToast('Question added', 'success'); e.target.reset(); generateOptionInputs(); loadQuestions();
-            } catch (error) { 
-                showToast('Error: ' + error.message, 'warning'); 
-                console.error(error);
-            }
+            } catch (error) { showToast('Error: ' + error.message, 'warning'); console.error(error); }
         };
 
         async function loadQuestions() {
@@ -553,21 +447,15 @@
                     listEl.appendChild(card);
                 });
             } catch (error) { 
-                listEl.innerHTML = `<div style="color:red; padding:1rem; text-align:center;"><strong>Error:</strong> ${error.message}<br>Check Firestore Rules.</div>`;
+                listEl.innerHTML = `<div style="color:red; padding:1rem; text-align:center;"><strong>Error:</strong> ${error.message}</div>`;
                 console.error("Load Error:", error);
-                alert("Database Error: " + error.message);
             }
         }
 
         window.deleteQuestion = async (id) => {
             if(confirm('Delete?')) { 
-                try {
-                    await deleteDoc(doc(db, "questions", id)); 
-                    showToast('Deleted', 'success'); 
-                    loadQuestions();
-                } catch(e) {
-                    alert("Delete failed: " + e.message);
-                }
+                try { await deleteDoc(doc(db, "questions", id)); showToast('Deleted', 'success'); loadQuestions(); } 
+                catch(e) { alert("Delete failed: " + e.message); }
             }
         };
 
@@ -579,7 +467,6 @@
             }
         };
 
-        // --- Bulk Upload ---
         window.handleBulkUpload = async () => {
             const fileInput = document.getElementById('bulk-file');
             const file = fileInput.files[0];
@@ -596,41 +483,23 @@
 
                 const blocks = text.split('---').filter(b => b.trim().length > 0);
                 let count = 0;
-                
                 for (const block of blocks) {
                     const lines = block.split('\n').map(l => l.trim()).filter(l => l.length > 0);
                     if (lines.length >= 7) {
-                        const q = {
-                            text: lines[0],
-                            options: lines.slice(1, 5),
-                            correctIndex: parseInt(lines[5]) - 1,
-                            marks: parseInt(lines[6]) || 1
-                        };
+                        const q = { text: lines[0], options: lines.slice(1, 5), correctIndex: parseInt(lines[5]) - 1, marks: parseInt(lines[6]) || 1 };
                         if(q.correctIndex >= 0 && q.correctIndex <= 3) {
-                            try {
-                                await addDoc(collection(db, "questions"), { ...q, timestamp: Date.now() });
-                                count++;
-                            } catch (uploadErr) {
-                                console.error("Upload error for question: ", uploadErr);
-                            }
+                            try { await addDoc(collection(db, "questions"), { ...q, timestamp: Date.now() }); count++; } catch (e) { console.error(e); }
                         }
                     }
                 }
-                if(count > 0) {
-                    showToast(`Uploaded ${count} questions`, 'success'); 
-                    fileInput.value = ''; 
-                    loadQuestions();
-                } else {
-                    showToast('No valid questions found. Check format.', 'warning');
-                }
+                if(count > 0) { showToast(`Uploaded ${count} questions`, 'success'); fileInput.value = ''; loadQuestions(); }
+                else showToast('No valid questions found.', 'warning');
             } catch (error) { showToast('Error: ' + error.message, 'warning'); }
         };
 
-        // --- Admin Results Logic ---
-
         async function loadResults() {
             const tbody = document.querySelector('#results-table tbody');
-            tbody.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5">Loading results...</td></tr>';
             window.allResults = [];
             try {
                 const q = query(collection(db, "results"), orderBy("timestamp", "desc"));
@@ -641,7 +510,7 @@
                     const data = doc.data();
                     window.allResults.push(data);
                     const row = document.createElement('tr');
-                    const videoLink = data.videoUrl 
+                    const videoLink = data.videoUrl && data.videoUrl !== "Pending..." && data.videoUrl !== "Failed"
                         ? `<a href="${data.videoUrl}" target="_blank" class="btn btn-primary" style="font-size:0.8rem; padding:0.4rem;">Watch Video</a>`
                         : `<span style="color:#aaa; font-size:0.8rem;">No Video</span>`;
                     row.innerHTML = `
@@ -669,14 +538,13 @@
             let content = "", mimeType = "text/plain", filename = `results.${format}`;
             if (format === 'csv') {
                 content = "Email,Score,Total Marks,Date,Video Link\n";
-                window.allResults.forEach(r => { content += `${r.email},${r.score},${r.totalMarks},${new Date(r.timestamp).toLocaleString()},${r.videoUrl || 'N/A'}\n`; });
+                window.allResults.forEach(r => content += `${r.email},${r.score},${r.totalMarks},${new Date(r.timestamp).toLocaleString()},${r.videoUrl || 'N/A'}\n`);
                 mimeType = "text/csv";
             } else if (format === 'txt') {
-                content = "RESULTS\n";
-                window.allResults.forEach(r => { content += `${r.email}: ${r.score}/${r.totalMarks} - ${r.videoUrl}\n`; });
+                content = "RESULTS\n"; window.allResults.forEach(r => content += `${r.email}: ${r.score}/${r.totalMarks} - ${r.videoUrl}\n`);
             } else if (format === 'doc') {
                 content = `<table border="1"><thead><tr><th>Email</th><th>Score</th><th>Video</th></tr></thead><tbody>`;
-                window.allResults.forEach(r => { content += `<tr><td>${r.email}</td><td>${r.score}</td><td><a href="${r.videoUrl}">Watch</a></td></tr>`; });
+                window.allResults.forEach(r => content += `<tr><td>${r.email}</td><td>${r.score}</td><td><a href="${r.videoUrl}">Watch</a></td></tr>`);
                 content += `</tbody></table>`; mimeType = "application/msword";
             }
             const blob = new Blob([content], { type: mimeType });
@@ -685,8 +553,6 @@
             document.body.appendChild(a); a.click(); document.body.removeChild(a);
             showToast(`Downloaded ${format.toUpperCase()}`, 'success');
         };
-
-        // --- User Dashboard Logic ---
 
         function initUserDashboard() {
             document.getElementById('user-dashboard').classList.remove('hidden');
@@ -704,53 +570,34 @@
                     window.examQuestions.push({ id: doc.id, ...data });
                     window.totalExamMarks += data.marks;
                 });
-            } catch (error) {
-                console.error("User Load Error:", error);
-            }
+            } catch (error) { console.error("User Load Error:", error); }
         }
 
-        // --- Quiz & Security Logic ---
-        
         window.quizState = { currentIndex: 0, answers: {}, score: 0, warnings: 0, maxWarnings: 10, isActive: false, stream: null };
 
         window.startQuiz = async () => {
-            if (window.examQuestions.length === 0) {
-                showToast('No questions available. Please contact admin.', 'warning');
-                return;
-            }
+            if (window.examQuestions.length === 0) return showToast('No questions available.', 'warning');
             try { await document.documentElement.requestFullscreen(); } catch (err) { showToast('Fullscreen required', 'warning'); return; }
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
                 window.quizState.stream = stream;
                 document.getElementById('webcam').srcObject = stream;
                 
-                // Start Recording Logic
+                // FIX: Tab Switch Listener moved HERE
+                document.addEventListener('visibilitychange', handleVisibilityChange);
+                document.addEventListener('fullscreenchange', handleFullscreenChange);
+
                 recordedChunks = [];
                 if (MediaRecorder.isTypeSupported('video/webm')) {
                     try {
                         mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-                        mediaRecorder.ondataavailable = event => {
-                            if (event.data.size > 0) recordedChunks.push(event.data);
-                        };
-                        mediaRecorder.onstop = () => {
-                            console.log("Recording stopped. Chunks:", recordedChunks.length);
-                        };
+                        mediaRecorder.ondataavailable = event => { if (event.data.size > 0) recordedChunks.push(event.data); };
                         mediaRecorder.start();
                         document.getElementById('rec-indicator').style.display = 'block';
                         showToast('Recording started', 'success');
-                    } catch (e) {
-                        console.error("Recorder failed", e);
-                        alert("Video recording failed to start. Exam will proceed without video.");
-                    }
-                } else {
-                    alert("Browser does not support video recording. Exam will proceed without video.");
-                }
-
-            } catch (err) { 
-                showToast('Camera required', 'warning'); 
-                document.exitFullscreen(); 
-                return; 
-            }
+                    } catch (e) { console.error("Recorder failed", e); alert("Video recording failed."); }
+                } else alert("Browser does not support video recording.");
+            } catch (err) { showToast('Camera required', 'warning'); document.exitFullscreen(); return; }
 
             document.getElementById('user-dashboard').classList.add('hidden');
             document.getElementById('navbar').classList.add('hidden');
@@ -792,70 +639,42 @@
 
         window.submitQuiz = async () => {
             stopProctoring();
-            
-            // 1. Calculate Score Immediately
             const calculatedScore = calculateScore();
             
-            let videoUrl = null;
-            let videoError = null;
+            // 1. Stop Recording
+            if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+            
+            // 2. Wait for chunks to process
+            await new Promise(r => setTimeout(r, 1000));
 
-            // 2. Stop Recording
-            if (mediaRecorder && mediaRecorder.state === 'recording') {
-                mediaRecorder.stop(); // Triggers ondataavailable
-            }
+            // 3. Prepare Result Object
+            let resultData = {
+                email: window.currentUser.email,
+                score: calculatedScore,
+                totalMarks: window.totalExamMarks,
+                videoUrl: null, // Default
+                timestamp: Date.now()
+            };
 
-            // 3. Wait for chunks to finalize
-            await new Promise(r => setTimeout(r, 1500));
+            let docRef = null;
 
-            // 4. Try to Upload Video
-            if (recordedChunks.length > 0) {
-                try {
-                    const blob = new Blob(recordedChunks, { type: 'video/webm' });
-                    if (blob.size < 1000) {
-                        throw new Error("Video file too small (recording failed)");
-                    }
-                    const filename = `exam_${Date.now()}_${window.currentUser.email.replace(/[^a-zA-Z0-9]/g, '_')}.webm`;
-                    const storageRef = ref(storage, `exam_videos/${filename}`);
-                    
-                    showToast('Uploading video... Please wait.', 'success');
-                    
-                    await uploadBytes(storageRef, blob);
-                    videoUrl = await getDownloadURL(storageRef);
-                    console.log("Video uploaded successfully");
-                } catch (err) {
-                    console.error("Video Upload Failed:", err);
-                    videoError = err.message;
-                    showToast('Video Upload Failed, but saving score...', 'warning');
-                }
-            } else {
-                console.log("No video chunks recorded");
-            }
-
-            // 5. Save Result (Always runs, regardless of video)
             try {
-                await addDoc(collection(db, "results"), {
-                    email: window.currentUser.email,
-                    score: calculatedScore,
-                    totalMarks: window.totalExamMarks,
-                    videoUrl: videoUrl,
-                    timestamp: Date.now()
-                });
-                showToast('Result Saved Successfully', 'success');
-            } catch(err) { 
-                console.error("Save result failed", err); 
-                showToast('Failed to save score: ' + err.message, 'warning');
-                // Even if save fails, we might want to show the user their score locally?
-                // For now, alert and stop.
-                alert("Critical Error: Could not save score.");
-                return; 
+                // 4. Save Result to Firestore IMMEDIATELY (with no video)
+                // This ensures submission never fails due to video issues
+                docRef = await addDoc(collection(db, "results"), resultData);
+                showToast("Exam Submitted Successfully", "success");
+            } catch(err) {
+                console.error("Critical Save Error", err);
+                alert("Failed to save score.");
+                return;
             }
 
-            // 6. Show UI
+            // 5. Show Result UI Immediately
             document.getElementById('quiz-interface').classList.add('hidden');
             document.exitFullscreen().catch(e => {});
             if (window.quizState.stream) window.quizState.stream.getTracks().forEach(track => track.stop());
             document.getElementById('result-modal').classList.remove('hidden');
-            
+
             // Animate Score
             const scoreEl = document.getElementById('final-score');
             let current = 0;
@@ -863,6 +682,37 @@
                 if (current >= calculatedScore) clearInterval(interval);
                 else { current++; scoreEl.innerText = current; }
             }, 50);
+
+            // 6. Handle Video Upload in Background (with Timeout)
+            if (recordedChunks.length > 0) {
+                try {
+                    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                    if (blob.size > 1000) {
+                        showToast("Uploading video in background...", "warning");
+                        
+                        const filename = `exam_${Date.now()}_${window.currentUser.email.replace(/[^a-zA-Z0-9]/g, '_')}.webm`;
+                        const storageRef = ref(storage, `exam_videos/${filename}`);
+
+                        // FIX: 10 Second Timeout for Video Upload
+                        const uploadPromise = uploadBytes(storageRef, blob).then(async (snapshot) => {
+                            const url = await getDownloadURL(storageRef);
+                            // Update the specific document we just saved
+                            await updateDoc(docRef, { videoUrl: url });
+                            showToast("Video uploaded successfully", "success");
+                        });
+
+                        const timeoutPromise = new Promise((_, reject) => 
+                            setTimeout(() => reject(new Error("Timeout")), 10000) // 10 Seconds
+                        );
+
+                        await Promise.race([uploadPromise, timeoutPromise]);
+                    }
+                } catch (err) {
+                    console.log("Video upload skipped/failed:", err);
+                    // We already saved the score, so we don't alert the user unless we want to.
+                    // Optionally: await updateDoc(docRef, { videoUrl: "Failed" });
+                }
+            }
         };
 
         function calculateScore() {
@@ -871,12 +721,10 @@
             return total;
         }
 
-        // --- Proctoring System ---
         let proctorInterval, canvas, ctx;
         function startProctoring() {
             canvas = document.createElement('canvas'); ctx = canvas.getContext('2d', { willReadFrequently: true });
-            document.addEventListener('visibilitychange', handleVisibilityChange);
-            document.addEventListener('fullscreenchange', handleFullscreenChange);
+            // Listeners already added in startQuiz to catch early switches
             proctorInterval = setInterval(analyzeCameraFrame, 1500);
         }
         function stopProctoring() {
@@ -902,7 +750,8 @@
             else bar.style.backgroundColor = 'var(--danger)';
         }
         function handleVisibilityChange() { 
-            // Check strict state
+            // DEBUG: Check console
+            console.log("Visibility Changed. Hidden:", document.hidden, "Active:", window.quizState.isActive);
             if (document.hidden && window.quizState.isActive) { 
                 triggerViolation("Tab switched/minimized"); 
             }
